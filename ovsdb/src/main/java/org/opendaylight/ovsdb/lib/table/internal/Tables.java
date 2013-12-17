@@ -9,6 +9,11 @@
  */
 package org.opendaylight.ovsdb.lib.table.internal;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.opendaylight.ovsdb.lib.table.Bridge;
 import org.opendaylight.ovsdb.lib.table.Capability;
 import org.opendaylight.ovsdb.lib.table.Interface;
@@ -25,18 +30,21 @@ import org.opendaylight.ovsdb.lib.table.SSL;
 import org.opendaylight.ovsdb.lib.table.Flow_Sample_Collector_Set;
 import org.opendaylight.ovsdb.lib.table.Flow_Table;
 import org.opendaylight.ovsdb.lib.table.IPFIX;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import org.opendaylight.ovsdb.lib.table.vtep.Global;
+import org.opendaylight.ovsdb.lib.table.vtep.Logical_Switch;
+import org.opendaylight.ovsdb.lib.table.vtep.Mcast_Macs_Local;
+import org.opendaylight.ovsdb.lib.table.vtep.Mcast_Macs_Remote;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Locator;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Port;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Switch;
+import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Local;
+import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Remote;
 
 public class Tables {
     private static Map<String, List<Table>> dbTables = new HashMap<>();
 
     static {
         List<Table> ovsTables = new ArrayList<>();
-        dbTables.put(Open_vSwitch.NAME.getName(), ovsTables);
         ovsTables.add(new Bridge());
         ovsTables.add(new Port());
         ovsTables.add(new Capability());
@@ -53,6 +61,21 @@ public class Tables {
         ovsTables.add(new Flow_Sample_Collector_Set());
         ovsTables.add(new Flow_Table());
         ovsTables.add(new IPFIX());
+
+        List<Table> vtepTables = new ArrayList<>();
+        vtepTables.add(new Global());
+        vtepTables.add(new Manager());
+        vtepTables.add(new Physical_Switch());
+        vtepTables.add(new Physical_Locator());
+        vtepTables.add(new Physical_Port());
+        vtepTables.add(new Logical_Switch());
+        vtepTables.add(new Mcast_Macs_Local());
+        vtepTables.add(new Mcast_Macs_Remote());
+        vtepTables.add(new Ucast_Macs_Local());
+        vtepTables.add(new Ucast_Macs_Remote());
+
+        dbTables.put(Open_vSwitch.NAME.getName(), ovsTables);
+        dbTables.put("hardware_vtep", vtepTables);
     }
 
     public static List<Table> getTables(String dbName) {

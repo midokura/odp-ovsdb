@@ -1213,7 +1213,6 @@ public class ConfigurationService extends ConfigurationServiceBase
         return _deleteTableRow(node,uuid,parentTableName,childTableName,parentColumn);
     }
 
-    // TODO: probably worth removing, keeping it here to respect the current api
     @SuppressWarnings("unused")
     public void _ovsconnect (CommandInterpreter ci) {
         super._connect(ci);

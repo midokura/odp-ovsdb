@@ -17,6 +17,7 @@ import org.opendaylight.controller.sal.utils.Status;
 import org.opendaylight.controller.sal.utils.StatusCode;
 import org.opendaylight.ovsdb.lib.message.TransactBuilder;
 import org.opendaylight.ovsdb.lib.message.operations.DeleteOperation;
+import org.opendaylight.ovsdb.lib.message.operations.InsertOperation;
 import org.opendaylight.ovsdb.lib.message.operations.MutateOperation;
 import org.opendaylight.ovsdb.lib.message.operations.Operation;
 import org.opendaylight.ovsdb.lib.message.operations.OperationResult;
@@ -392,6 +393,19 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
         return new Status(StatusCode.INTERNALERROR);
     }
 
+    /*
+     * Convenience method, does a single Op transaction, useful in a bunch
+     * of operations below.
+     */
+    StatusWithUuid doInsertTransact(Node node, String tableName,
+                                    String uuidName, Table<?> row) {
+        Operation op = new InsertOperation(tableName, uuidName, row);
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        transaction.addOperation(op);
+        int insertIdx = transaction.getRequests().indexOf(op);
+        return _insertTableRow(node, transaction, insertIdx, tableName,
+                               tableName);
+    }
 
     // Service operations
 
