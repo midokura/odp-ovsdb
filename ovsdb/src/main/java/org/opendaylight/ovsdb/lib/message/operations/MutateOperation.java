@@ -1,5 +1,6 @@
 package org.opendaylight.ovsdb.lib.message.operations;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.opendaylight.ovsdb.lib.notation.Condition;
@@ -19,6 +20,11 @@ public class MutateOperation extends Operation {
         this.where = where;
         this.mutations = mutations;
     }
+
+    public MutateOperation(String table, Condition where, Mutation mutation) {
+        this(table, Arrays.asList(where), Arrays.asList(mutation));
+    }
+
     public String getTable() {
         return table;
     }
