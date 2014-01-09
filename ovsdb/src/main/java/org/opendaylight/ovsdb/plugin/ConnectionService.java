@@ -289,7 +289,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         props.add(l4Port);
         inventoryServiceInternal.addNode(connection.getNode(), props);
 
-        List<String> dbNames = Arrays.asList(Open_vSwitch.NAME.getName());
+        List<String> dbNames = Arrays.asList("hardware_vtep");
         ListenableFuture<DatabaseSchema> dbSchemaF = connection.getRpc().get_schema(dbNames);
         DatabaseSchema databaseSchema = dbSchemaF.get();
         inventoryServiceInternal.updateDatabaseSchema(connection.getNode(), databaseSchema);

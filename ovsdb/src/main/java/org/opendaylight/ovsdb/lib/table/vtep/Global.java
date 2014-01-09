@@ -1,5 +1,7 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
@@ -17,6 +19,7 @@ public class Global extends Table<Global> {
     private OvsDBSet<UUID> switches = new OvsDBSet<>();
 
     @Override
+    @JsonIgnore
     public Name<Global> getTableName() { return NAME; }
 
     @Override

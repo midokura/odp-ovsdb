@@ -19,6 +19,7 @@ public class OvsdbType {
 
         private String name;
 
+        @Override
         public String toString() {
             return name;
         }
@@ -46,7 +47,7 @@ public class OvsdbType {
             this.type = type;
         }
 
-        public BaseType(@JsonProperty("type") String type, @JsonProperty("enum") Object[] ovsdbEnum,
+        public BaseType(@JsonProperty("type") String type, @JsonProperty("enum") Object ovsdbEnum,
                 @JsonProperty("minInteger") Integer minInteger, @JsonProperty("maxInteger") Integer maxInteger,
                 @JsonProperty("minReal") Double minReal, @JsonProperty("maxReal") Double maxReal,
                 @JsonProperty("minLength") Integer minLength, @JsonProperty("maxLength") Integer maxLength,
@@ -64,7 +65,7 @@ public class OvsdbType {
         }
 
         public String type;
-        public Object[] ovsdbEnum;
+        public Object ovsdbEnum;
         public Integer minInteger;
         public Integer maxInteger;
         public Double minReal;
@@ -76,7 +77,7 @@ public class OvsdbType {
         @Override
         public String toString() {
             return "BaseType [type=" + type + ", ovsdbEnum="
-                    + Arrays.toString(ovsdbEnum) + ", minInteger=" + minInteger
+                    + ovsdbEnum + ", minInteger=" + minInteger
                     + ", maxInteger=" + maxInteger + ", minReal=" + minReal
                     + ", maxReal=" + maxReal + ", minLength=" + minLength
                     + ", maxLength=" + maxLength + ", refTable=" + refTable

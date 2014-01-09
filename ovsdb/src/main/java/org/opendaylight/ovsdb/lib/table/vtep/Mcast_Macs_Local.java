@@ -3,6 +3,8 @@ package org.opendaylight.ovsdb.lib.table.vtep;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Mcast_Macs_Local extends Table<Mcast_Macs_Local> {
 
     public static final Name<Mcast_Macs_Local> NAME =
@@ -19,6 +21,7 @@ public class Mcast_Macs_Local extends Table<Mcast_Macs_Local> {
     private UUID locator_set;
 
     @Override
+    @JsonIgnore
     public Name<Mcast_Macs_Local> getTableName() { return NAME; }
 
     @Override

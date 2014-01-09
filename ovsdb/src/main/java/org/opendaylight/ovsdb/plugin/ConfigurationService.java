@@ -919,7 +919,7 @@ public class ConfigurationService implements IPluginInBridgeDomainConfigService,
         String rowName=bridgeRow.getName();
 
         try{
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, Open_vSwitch.NAME.getName());
+            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, "hardware_vtep"); // Open_vSwitch.NAME.getName());
 
             if (ovsTable == null) {
                 return new StatusWithUuid(StatusCode.NOTFOUND, "There are no Open_vSwitch instance in the Open_vSwitch table");
@@ -1742,6 +1742,10 @@ public class ConfigurationService implements IPluginInBridgeDomainConfigService,
         String ovsdbServer = ci.nextArgument();
         String port = ci.nextArgument();
 
+        nodeName = "OVS|hardware_vtep";
+        ovsdbServer = "127.0.0.1";
+        port = "6633";
+
         ci.println("connecting to ovsdb server : "+ovsdbServer+":"+port+" ... ");
         Map<ConnectionConstants, String> params = new HashMap<ConnectionConstants, String>();
         params.put(ConnectionConstants.ADDRESS, ovsdbServer);
@@ -1752,9 +1756,9 @@ public class ConfigurationService implements IPluginInBridgeDomainConfigService,
         else ci.println("Could not connect to Node");
         ci.println("Creating a logical switch");
         Logical_Switch ls = new Logical_Switch();
-        ls.setName(ci.nextArgument());
-        ls.setDescription(ci.nextArgument());
-        ls.setTunnel_key(Integer.parseInt(ci.nextArgument()));
+        ls.setName("lswname");
+        ls.setDescription("lswdesc");
+        ls.setTunnel_key(888);
         StatusWithUuid st = insertRow(node, Logical_Switch.NAME.getName(), null, ls);
         if (!st.isSuccess()) {
             ci.println("NOES! failed.." + st.getCode());
@@ -1764,7 +1768,8 @@ public class ConfigurationService implements IPluginInBridgeDomainConfigService,
 
         Physical_Port pp = new Physical_Port();
         OvsDBMap<Integer, UUID> vlanBindings = new OvsDBMap<>();
-        vlanBindings.put(Integer.parseInt(ci.nextArgument()), lsId);
+        // vlanBindings.put(Integer.parseInt(ci.nextArgument()), lsId);
+        vlanBindings.put(888, lsId);
 
         pp.setName("Test port");
         pp.setDescription("This is the test port description");
@@ -1777,11 +1782,13 @@ public class ConfigurationService implements IPluginInBridgeDomainConfigService,
         ci.println("The physical port is: " + st.getUuid());
 
         Ucast_Macs_Remote umr = new Ucast_Macs_Remote();
-        umr.setMac(ci.nextArgument());
+        // umr.setMac(ci.nextArgument());
+        umr.setMac("aa:bb:cc:88:88:88");
         umr.setLogical_switch(lsId);
         umr.setLocator(new UUID("TODO: FIX ME")); // we probably need to add
                                                   // a locator
-        umr.setIpaddr(ci.nextArgument());
+        // umr.setIpaddr(ci.nextArgument());
+        umr.setIpaddr("10.1.1.1");
         st = insertRow(node, Ucast_Macs_Remote.NAME.getName(), null, umr);
         if (!st.isSuccess()) {
             ci.println("NOES! failed.." + st.getCode());
@@ -2296,8 +2303,8 @@ public class ConfigurationService implements IPluginInBridgeDomainConfigService,
 
         private StatusWithUuid insLogicalSwitch(Node node,
                                                 Logical_Switch row) {
-            return doInsertTransact(node, "new_logical_switch",
-                                    Logical_Switch.NAME.getName(), row);
+            return doInsertTransact(node, Logical_Switch.NAME.getName(),
+                                    "new_logical_switch", row);
         }
 
         private StatusWithUuid insPhysicalLocator(Node node,

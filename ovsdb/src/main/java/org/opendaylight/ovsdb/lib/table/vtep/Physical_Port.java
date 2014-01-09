@@ -5,7 +5,10 @@ import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Physical_Port extends Table<Physical_Port> {
+
 
     public static final Name<Physical_Port> NAME =
         new Name<Physical_Port>("Physical_Port"){};
@@ -25,6 +28,7 @@ public class Physical_Port extends Table<Physical_Port> {
     private OvsDBMap<Integer, UUID> vlan_stats;
 
     @Override
+    @JsonIgnore
     public Name<Physical_Port> getTableName() { return NAME; }
 
     @Override

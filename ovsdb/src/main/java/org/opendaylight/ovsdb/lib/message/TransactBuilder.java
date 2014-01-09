@@ -21,7 +21,7 @@ public class TransactBuilder implements Params {
 
     @Override
     public List<Object> params() {
-        List<Object> lists = Lists.newArrayList((Object)"Open_vSwitch");
+        List<Object> lists = Lists.newArrayList((Object)"hardware_vtep");
         lists.addAll(requests);
         return lists;
     }

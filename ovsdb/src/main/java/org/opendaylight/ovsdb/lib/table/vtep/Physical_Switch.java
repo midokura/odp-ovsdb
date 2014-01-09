@@ -4,6 +4,8 @@ import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Physical_Switch extends Table<Physical_Switch> {
 
     public static final Name<Physical_Switch> NAME =
@@ -26,6 +28,7 @@ public class Physical_Switch extends Table<Physical_Switch> {
     private OvsDBSet<String> tunnel_ips;
 
     @Override
+    @JsonIgnore
     public Name<Physical_Switch> getTableName() { return NAME; }
 
     @Override

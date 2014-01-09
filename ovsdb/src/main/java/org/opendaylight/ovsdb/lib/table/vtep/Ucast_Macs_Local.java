@@ -4,6 +4,8 @@ import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Ucast_Macs_Local extends Table<Ucast_Macs_Local> {
 
     public static final Name<Ucast_Macs_Local> NAME =
@@ -22,6 +24,7 @@ public class Ucast_Macs_Local extends Table<Ucast_Macs_Local> {
     private String ipaddr;
 
     @Override
+    @JsonIgnore
     public Name<Ucast_Macs_Local> getTableName() { return NAME; }
 
     @Override

@@ -1,5 +1,7 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
 public class Manager extends Table<Manager> {
@@ -38,6 +40,7 @@ public class Manager extends Table<Manager> {
     private String dscp;
 
     @Override
+    @JsonIgnore
     public Name<Manager> getTableName() { return NAME; }
 
     @Override

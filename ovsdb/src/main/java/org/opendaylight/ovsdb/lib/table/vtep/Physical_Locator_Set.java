@@ -4,6 +4,8 @@ import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Physical_Locator_Set extends Table<Physical_Locator_Set> {
 
     public static final Name<Physical_Locator_Set> NAME =
@@ -17,6 +19,7 @@ public class Physical_Locator_Set extends Table<Physical_Locator_Set> {
     private OvsDBSet<UUID> locators;
 
     @Override
+    @JsonIgnore
     public Name<Physical_Locator_Set> getTableName() { return NAME; }
 
     @Override

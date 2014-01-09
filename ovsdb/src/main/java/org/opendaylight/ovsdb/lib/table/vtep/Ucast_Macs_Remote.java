@@ -3,6 +3,8 @@ package org.opendaylight.ovsdb.lib.table.vtep;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Ucast_Macs_Remote extends Table<Ucast_Macs_Remote> {
 
     public static final Name<Ucast_Macs_Remote> NAME =
@@ -21,6 +23,7 @@ public class Ucast_Macs_Remote extends Table<Ucast_Macs_Remote> {
     private String ipaddr;
 
     @Override
+    @JsonIgnore
     public Name<Ucast_Macs_Remote> getTableName() { return NAME; }
 
     @Override

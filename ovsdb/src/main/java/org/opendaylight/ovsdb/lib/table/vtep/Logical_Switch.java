@@ -2,6 +2,8 @@ package org.opendaylight.ovsdb.lib.table.vtep;
 
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Logical_Switch extends Table<Logical_Switch> {
 
     public static final Table.Name<Logical_Switch> NAME =
@@ -18,6 +20,7 @@ public class Logical_Switch extends Table<Logical_Switch> {
     private Integer tunnel_key;
 
     @Override
+    @JsonIgnore
     public Name<Logical_Switch> getTableName() { return NAME; }
 
     @Override

@@ -16,7 +16,7 @@ public class MonitorRequestBuilder implements Params {
 
     @Override
     public List<Object> params() {
-        return Lists.newArrayList("Open_vSwitch", null, requests);
+        return Lists.newArrayList("hardware_vtep", null, requests);
     }
 
     public <T extends Table> MonitorRequest<T> monitor(T table) {

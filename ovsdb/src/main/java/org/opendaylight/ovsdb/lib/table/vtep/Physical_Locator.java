@@ -2,6 +2,8 @@ package org.opendaylight.ovsdb.lib.table.vtep;
 
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 public class Physical_Locator extends Table<Physical_Locator> {
 
     public static final Name<Physical_Locator> NAME =
@@ -16,6 +18,7 @@ public class Physical_Locator extends Table<Physical_Locator> {
     private String dst_ip;
 
     @Override
+    @JsonIgnore
     public Name<Physical_Locator> getTableName() { return NAME; }
 
     @Override
