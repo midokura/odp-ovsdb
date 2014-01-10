@@ -22,6 +22,7 @@ public class StatusWithUuid extends Status {
 
     public StatusWithUuid(StatusCode errorCode) {
         super(errorCode);
+        this.uuid = null;
     }
 
     public StatusWithUuid(StatusCode errorCode, String description) {

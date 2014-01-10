@@ -17,7 +17,17 @@ import java.util.List;
 
 public class TransactBuilder implements Params {
 
-    List<Operation> requests = Lists.newArrayList();
+    private List<Operation> requests = Lists.newArrayList();
+    private String dbName;
+
+    /**
+     * Constructs the TransactBuilder object for the given db name.
+     *
+     * @param dbName the db name.
+     */
+    public TransactBuilder(String dbName) {
+        this.dbName = dbName;
+    }
 
     public List<Operation> getRequests() {
         return requests;
@@ -25,7 +35,8 @@ public class TransactBuilder implements Params {
 
     @Override
     public List<Object> params() {
-        List<Object> lists = Lists.newArrayList((Object)"Open_vSwitch");
+        List<Object> lists = Lists.newArrayList();
+        lists.add(dbName);
         lists.addAll(requests);
         return lists;
     }

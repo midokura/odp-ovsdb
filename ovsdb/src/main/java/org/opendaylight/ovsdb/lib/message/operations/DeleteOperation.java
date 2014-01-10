@@ -9,6 +9,7 @@
  */
 package org.opendaylight.ovsdb.lib.message.operations;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.opendaylight.ovsdb.lib.notation.Condition;
@@ -23,6 +24,11 @@ public class DeleteOperation extends Operation {
         this.table = table;
         this.where = where;
     }
+
+    public DeleteOperation(String table, Condition where) {
+        this(table, Arrays.asList(where));
+    }
+
     public String getTable() {
         return table;
     }
