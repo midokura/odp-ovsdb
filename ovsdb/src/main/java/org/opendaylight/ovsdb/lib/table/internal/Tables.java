@@ -27,31 +27,36 @@ import org.opendaylight.ovsdb.lib.table.Flow_Table;
 import org.opendaylight.ovsdb.lib.table.IPFIX;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Tables {
-    public static List<Table> tables = new ArrayList<Table>();
+    private static Map<String, List<Table>> dbTables = new HashMap<>();
 
     static {
-        tables.add(new Bridge());
-        tables.add(new Port());
-        tables.add(new Capability());
-        tables.add(new Interface());
-        tables.add(new Controller());
-        tables.add(new Manager());
-        tables.add(new Mirror());
-        tables.add(new NetFlow());
-        tables.add(new Open_vSwitch());
-        tables.add(new Qos());
-        tables.add(new Queue());
-        tables.add(new SFlow());
-        tables.add(new SSL());
-        tables.add(new Flow_Sample_Collector_Set());
-        tables.add(new Flow_Table());
-        tables.add(new IPFIX());
+        List<Table> ovsTables = new ArrayList<>();
+        dbTables.put(Open_vSwitch.NAME.getName(), ovsTables);
+        ovsTables.add(new Bridge());
+        ovsTables.add(new Port());
+        ovsTables.add(new Capability());
+        ovsTables.add(new Interface());
+        ovsTables.add(new Controller());
+        ovsTables.add(new Manager());
+        ovsTables.add(new Mirror());
+        ovsTables.add(new NetFlow());
+        ovsTables.add(new Open_vSwitch());
+        ovsTables.add(new Qos());
+        ovsTables.add(new Queue());
+        ovsTables.add(new SFlow());
+        ovsTables.add(new SSL());
+        ovsTables.add(new Flow_Sample_Collector_Set());
+        ovsTables.add(new Flow_Table());
+        ovsTables.add(new IPFIX());
     }
 
-    public static List<Table> getTables() {
-        return tables;
+    public static List<Table> getTables(String dbName) {
+        List<Table> tables = dbTables.get(dbName);
+        return (tables == null) ? new ArrayList<Table>() : tables;
     }
 }

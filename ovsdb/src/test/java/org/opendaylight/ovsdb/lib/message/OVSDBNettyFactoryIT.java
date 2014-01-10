@@ -102,9 +102,11 @@ public class OVSDBNettyFactoryIT {
 
         // TEST MONITOR
         // YES it is expected to fail with "duplicate monitor ID" as we have a perpetual monitor in Inventory Service
-        MonitorRequestBuilder monitorReq = new MonitorRequestBuilder();
-        for (Table<?> table : Tables.getTables()) {
-            monitorReq.monitor(table);
+        MonitorRequestBuilder monitorReq = new MonitorRequestBuilder(Open_vSwitch.NAME.getName());
+        for (String dbName : dbNames) {
+            for (Table<?> table : Tables.getTables(dbName)) {
+                monitorReq.monitor(table);
+            }
         }
 
         ListenableFuture<TableUpdates> monResponse = ovsdb.monitor(monitorReq);
@@ -166,7 +168,7 @@ public class OVSDBNettyFactoryIT {
         interfaceRow.setType("internal");
         InsertOperation addIntfRequest = new InsertOperation(Interface.NAME.getName(), newInterface, interfaceRow);
 
-        TransactBuilder transaction = new TransactBuilder();
+        TransactBuilder transaction = new TransactBuilder(Open_vSwitch.NAME.getName());
         transaction.addOperations(new ArrayList<Operation>(
                 Arrays.asList(addSwitchRequest, addIntfRequest, addPortRequest, addBridgeRequest)));
 

@@ -9,6 +9,24 @@
  */
 package org.opendaylight.ovsdb.plugin;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListenableFuture;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -26,20 +44,6 @@ import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.CharsetUtil;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-
 import org.opendaylight.controller.clustering.services.IClusterGlobalServices;
 import org.opendaylight.controller.sal.connection.ConnectionConstants;
 import org.opendaylight.controller.sal.connection.IPluginInConnectionService;
@@ -49,6 +53,7 @@ import org.opendaylight.controller.sal.utils.ServiceHelper;
 import org.opendaylight.controller.sal.utils.Status;
 import org.opendaylight.controller.sal.utils.StatusCode;
 import org.opendaylight.ovsdb.lib.database.DatabaseSchema;
+import org.opendaylight.ovsdb.lib.database.TableSchema;
 import org.opendaylight.ovsdb.lib.jsonrpc.JsonRpcDecoder;
 import org.opendaylight.ovsdb.lib.jsonrpc.JsonRpcEndpoint;
 import org.opendaylight.ovsdb.lib.jsonrpc.JsonRpcServiceBinderHandler;
@@ -59,16 +64,10 @@ import org.opendaylight.ovsdb.lib.message.UpdateNotification;
 import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.table.Bridge;
 import org.opendaylight.ovsdb.lib.table.Controller;
-import org.opendaylight.ovsdb.lib.table.Open_vSwitch;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 import org.opendaylight.ovsdb.lib.table.internal.Tables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonInclude.Include;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.ListenableFuture;
 
 
 /**
@@ -77,6 +76,8 @@ import com.google.common.util.concurrent.ListenableFuture;
  */
 public class ConnectionService implements IPluginInConnectionService, IConnectionServiceInternal, OvsdbRPC.Callback {
     protected static final Logger logger = LoggerFactory.getLogger(ConnectionService.class);
+
+    private static final int DEFAULT_OPENFLOW_PORT = 6633;
 
     // Properties that can be set in config.ini
     private static final String OVSDB_LISTENPORT = "ovsdb.listenPort";
@@ -109,7 +110,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     }
 
     public void init() {
-        ovsdbConnections = new ConcurrentHashMap<String, Connection>();
+        ovsdbConnections = new ConcurrentHashMap<>();
         int listenPort = defaultOvsdbPort;
         String portString = System.getProperty(OVSDB_LISTENPORT);
         if (portString != null) {
@@ -231,7 +232,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
 
     @Override
     public List<Node> getNodes() {
-        List<Node> nodes = new ArrayList<Node>();
+        List<Node> nodes = new ArrayList<>();
         for (Connection connection : ovsdbConnections.values()) {
             nodes.add(connection.getNode());
         }
@@ -302,42 +303,62 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         Channel channel = connection.getChannel();
         InetAddress address = ((InetSocketAddress)channel.remoteAddress()).getAddress();
         int port = ((InetSocketAddress)channel.remoteAddress()).getPort();
-        IPAddressProperty addressProp = new IPAddressProperty(address);
-        L4PortProperty l4Port = new L4PortProperty(port);
-        Set<Property> props = new HashSet<Property>();
-        props.add(addressProp);
-        props.add(l4Port);
+
+        Set<Property> props = new HashSet<>();
+        props.add(new IPAddressProperty(address));
+        props.add(new L4PortProperty(port));
         inventoryServiceInternal.addNode(connection.getNode(), props);
 
-        List<String> dbNames = Arrays.asList(Open_vSwitch.NAME.getName());
-        ListenableFuture<DatabaseSchema> dbSchemaF = connection.getRpc().get_schema(dbNames);
-        DatabaseSchema databaseSchema = dbSchemaF.get();
-        inventoryServiceInternal.updateDatabaseSchema(connection.getNode(), databaseSchema);
+        ListenableFuture<List<String>> dbNamesF = connection.getRpc().list_dbs();
+        OvsdbRPC rpc = connection.getRpc();
+        List<DatabaseSchema> dbSchemas = Lists.newArrayList();
+        Node node = connection.getNode();
 
-        MonitorRequestBuilder monitorReq = new MonitorRequestBuilder();
-        for (Table<?> table : Tables.getTables()) {
-            if (databaseSchema.getTables().keySet().contains(table.getTableName().getName())) {
-                monitorReq.monitor(table);
+        // Examine schemas in each database
+        for (String db : dbNamesF.get()) {
+            DatabaseSchema schema = rpc.get_schema(Arrays.asList(db)).get();
+            dbSchemas.add(schema);
+            inventoryServiceInternal.updateDatabaseSchema(node, schema);
+        }
+
+        // Set up monitors for all tables
+        for (DatabaseSchema schema : dbSchemas) {
+            String dbName = schema.getName();
+            Map<String, TableSchema> dbSchemaTables = schema.getTables();
+
+            MonitorRequestBuilder monitorReq = new MonitorRequestBuilder(dbName);
+            for (Table table : Tables.getTables(dbName)) {
+                String tableName = table.getTableName().getName();
+                if (dbSchemaTables.containsKey(tableName)) {
+                    logger.debug("Monitor table {} on db {}", tableName, dbName);
+                    monitorReq.monitor(table);
+                } else {
+                    logger.warn("Table {} is known for schema {}, but not " +
+                                "found in node {}", tableName, dbName,
+                                connection.getNode().getNodeIDString());
+                }
+            }
+
+            if (monitorReq.hasRequests()) {
+                TableUpdates updates = rpc.monitor(monitorReq).get();
+                if (updates.getError() != null) {
+                    logger.error("Error configuring monitor {}: {}",
+                                 updates.getError(), updates.getDetails());
+                    /* FIXME: This should be cause for alarm */
+                    throw new RuntimeException("Failed to setup a monitor in " +
+                                               "OVSDB " + dbName);
+                }
+                UpdateNotification monitor = new UpdateNotification();
+                monitor.setUpdate(updates);
+                this.update(connection.getNode(), monitor);
             } else {
-                logger.debug("We know about table {} but it is not in the schema of {}", table.getTableName().getName(), connection.getNode().getNodeIDString());
+                logger.info("No known tables in schema {}", dbName);
             }
         }
 
-        ListenableFuture<TableUpdates> monResponse = connection.getRpc().monitor(monitorReq);
-        TableUpdates updates = monResponse.get();
-        if (updates.getError() != null) {
-            logger.error("Error configuring monitor, error : {}, details : {}",
-                    updates.getError(),
-                    updates.getDetails());
-            /* FIXME: This should be cause for alarm */
-            throw new RuntimeException("Failed to setup a monitor in OVSDB");
-        }
-        UpdateNotification monitor = new UpdateNotification();
-        monitor.setUpdate(updates);
-        this.update(connection.getNode(), monitor);
-        if (autoConfigureController) {
-            this.updateOFControllers(connection.getNode());
-        }
+        // With the existing bridges learnt, now it is time to update the OF Controller connections.
+        // TODO: this should only happen when openvswitch schema
+        this.updateOFControllers(connection.getNode());
         inventoryServiceInternal.notifyNodeAdded(connection.getNode());
     }
 
@@ -407,7 +428,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         List<InetAddress> controllers = null;
         InetAddress controllerIP = null;
 
-        controllers = new ArrayList<InetAddress>();
+        controllers = new ArrayList<>();
         String addressString = System.getProperty("ovsdb.controller.address");
 
         if (addressString != null) {
@@ -424,7 +445,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
 
         if (clusterServices != null) {
             controllers = clusterServices.getClusteredControllers();
-            if (controllers != null && controllers.size() > 0) {
+            if (controllers != null && !controllers.isEmpty()) {
                 if (controllers.size() == 1) {
                     InetAddress controller = controllers.get(0);
                     if (!controller.equals(InetAddress.getLoopbackAddress())) {
@@ -461,8 +482,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     }
 
     private short getControllerOFPort() {
-        Short defaultOpenFlowPort = 6633;
-        Short openFlowPort = defaultOpenFlowPort;
+        Short openFlowPort = DEFAULT_OPENFLOW_PORT;
         String portString = System.getProperty("of.listenPort");
         if (portString != null) {
             try {
@@ -511,6 +531,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
                 ovsdbTable.insertRow(node, Controller.NAME.getName(), bridgeUUID, controllerRow);
             }
         }
+
         return true;
     }
 

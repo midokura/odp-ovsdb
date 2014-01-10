@@ -20,16 +20,35 @@ import java.util.Map;
 
 public class MonitorRequestBuilder implements Params {
 
-    Map<String, MonitorRequest> requests = Maps.newLinkedHashMap();
+    private Map<String, MonitorRequest> requests = Maps.newHashMap();
+    private String dbName;
+
+    /**
+     * Creates an instance for usage with entities in the the given db.
+     * @param dbName the db name.
+     */
+    public MonitorRequestBuilder(String dbName) {
+        this.dbName = dbName;
+    }
+
 
     @Override
     public List<Object> params() {
-        return Lists.newArrayList("Open_vSwitch", null, requests);
+        return Lists.newArrayList(dbName, null, requests);
     }
 
     public <T extends Table> MonitorRequest<T> monitor(T table) {
         MonitorRequest<T> req = new MonitorRequest<T>();
         requests.put(table.getTableName().getName(), req);
         return req;
+    }
+
+    /**
+     * Tells whether there are any requests in this monitor.
+     *
+     * @return
+     */
+    public boolean hasRequests() {
+        return !this.requests.isEmpty();
     }
 }

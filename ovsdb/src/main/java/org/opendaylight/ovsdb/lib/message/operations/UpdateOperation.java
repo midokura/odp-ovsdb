@@ -9,6 +9,7 @@
  */
 package org.opendaylight.ovsdb.lib.message.operations;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.opendaylight.ovsdb.lib.notation.Condition;
@@ -26,6 +27,11 @@ public class UpdateOperation extends Operation {
         this.where = where;
         this.row = row;
     }
+
+    public UpdateOperation(String table, Condition where, Table<?> row) {
+        this(table, Arrays.asList(where), row);
+    }
+
     public String getTable() {
         return table;
     }

@@ -40,6 +40,7 @@ import org.opendaylight.controller.sal.utils.ServiceHelper;
 import org.opendaylight.controller.sal.utils.Status;
 import org.opendaylight.controller.sal.utils.StatusCode;
 import org.opendaylight.ovsdb.lib.notation.UUID;
+import org.opendaylight.ovsdb.lib.table.Open_vSwitch;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 import org.opendaylight.ovsdb.lib.table.internal.Tables;
 import org.opendaylight.ovsdb.plugin.OVSDBConfigService;
@@ -84,7 +85,7 @@ public class OVSDBNorthbound {
     }
 
     private String getOVSTableName(String tableName) {
-        List<Table> tables = Tables.getTables();
+        List<Table> tables = Tables.getTables(Open_vSwitch.NAME.getName());
         for (Table table : tables) {
             if (table.getTableName().getName().equalsIgnoreCase(tableName)) {
                 return table.getTableName().getName();
