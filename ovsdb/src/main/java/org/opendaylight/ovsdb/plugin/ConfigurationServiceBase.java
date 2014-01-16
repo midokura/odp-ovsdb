@@ -404,18 +404,12 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
         transaction.addOperation(op);
         int insertIdx = transaction.getRequests().indexOf(op);
         return _insertTableRow(node, transaction, insertIdx, tableName,
-                               tableName);
+                               uuidName);
     }
 
     // Service operations
 
-    public void _connect(CommandInterpreter ci) {
-
-        String nodeName = ci.nextArgument();
-        if (nodeName == null) {
-            ci.println("Please enter Bridge Name");
-            return;
-        }
+    public void _connect(String nodeName, CommandInterpreter ci) {
 
         String server = ci.nextArgument();
         if (server == null) {

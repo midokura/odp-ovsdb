@@ -1,5 +1,7 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
 public class Logical_Switch extends Table<Logical_Switch> {
@@ -15,9 +17,11 @@ public class Logical_Switch extends Table<Logical_Switch> {
 
     private String description;
     private String name;
-    private Integer tunnel_key;
+    // It's a plain int in the documentation but the emulator has an array
+    private OvsDBSet<Integer> tunnel_key;
 
     @Override
+    @JsonIgnore
     public Name<Logical_Switch> getTableName() { return NAME; }
 
     @Override
@@ -38,8 +42,8 @@ public class Logical_Switch extends Table<Logical_Switch> {
 
     public void setName(String name) { this.name = name; }
 
-    public Integer getTunnel_key() { return tunnel_key; }
+    public OvsDBSet<Integer> getTunnel_key() { return tunnel_key; }
 
-    public void setTunnel_key(Integer key) { this.tunnel_key = key; }
+    public void setTunnel_key(OvsDBSet<Integer> key) { this.tunnel_key = key; }
 
 }

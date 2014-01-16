@@ -1,5 +1,6 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
 public class Physical_Locator extends Table<Physical_Locator> {
@@ -16,6 +17,7 @@ public class Physical_Locator extends Table<Physical_Locator> {
     private String dst_ip;
 
     @Override
+    @JsonIgnore
     public Name<Physical_Locator> getTableName() { return NAME; }
 
     @Override
@@ -31,7 +33,7 @@ public class Physical_Locator extends Table<Physical_Locator> {
     }
 
     public void setEncapsulation_type(String type) {
-        this.encapsulation_type = encapsulation_type;
+        this.encapsulation_type = type;
     }
 
     public String getDst_ip() {

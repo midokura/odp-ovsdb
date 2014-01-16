@@ -34,6 +34,7 @@ import org.opendaylight.ovsdb.lib.message.operations.InsertOperation;
 import org.opendaylight.ovsdb.lib.message.operations.MutateOperation;
 import org.opendaylight.ovsdb.lib.message.operations.Operation;
 import org.opendaylight.ovsdb.lib.message.operations.OperationResult;
+import org.opendaylight.ovsdb.lib.message.operations.SelectOperation;
 import org.opendaylight.ovsdb.lib.notation.Condition;
 import org.opendaylight.ovsdb.lib.notation.Function;
 import org.opendaylight.ovsdb.lib.notation.Mutation;
@@ -53,7 +54,18 @@ import org.opendaylight.ovsdb.lib.table.Qos;
 import org.opendaylight.ovsdb.lib.table.Queue;
 import org.opendaylight.ovsdb.lib.table.SFlow;
 import org.opendaylight.ovsdb.lib.table.SSL;
+import org.opendaylight.ovsdb.lib.table.internal.Column;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
+import org.opendaylight.ovsdb.lib.table.vtep.Global;
+import org.opendaylight.ovsdb.lib.table.vtep.Logical_Switch;
+import org.opendaylight.ovsdb.lib.table.vtep.Mcast_Macs_Local;
+import org.opendaylight.ovsdb.lib.table.vtep.Mcast_Macs_Remote;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Locator;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Locator_Set;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Port;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Switch;
+import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Local;
+import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Remote;
 
 /**
  * Offers OVS configuration operations.
@@ -61,10 +73,10 @@ import org.opendaylight.ovsdb.lib.table.internal.Table;
 public class ConfigurationService extends ConfigurationServiceBase
     implements IPluginInBridgeDomainConfigService {
 
-    private final String ovsDbName = Open_vSwitch.NAME.getName();
+    private String dbName = Open_vSwitch.NAME.getName();
 
     @Override
-    String getDatabaseName() { return ovsDbName; }
+    String getDatabaseName() { return dbName; }
 
     /**
      * Add a new bridge
@@ -87,7 +99,8 @@ public class ConfigurationService extends ConfigurationServiceBase
                 return new Status(StatusCode.NOSERVICE, "Connection to ovsdb-server not available");
             }
 
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, ovsDbName);
+            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node,
+                                                                                    dbName);
             String newBridge = "new_bridge";
             String newInterface = "new_interface";
             String newPort = "new_port";
@@ -101,14 +114,14 @@ public class ConfigurationService extends ConfigurationServiceBase
                 Mutation mutation = new Mutation("bridges", Mutator.INSERT, bridgeUuidPair);
                 UUID uuid = new UUID(ovsTableUUID);
                 Condition where = new Condition("_uuid", Function.EQUALS, uuid);
-                addSwitchRequest = new MutateOperation(ovsDbName, where, mutation);
+                addSwitchRequest = new MutateOperation(dbName, where, mutation);
             } else {
                 Open_vSwitch ovsTableRow = new Open_vSwitch();
                 OvsDBSet<UUID> bridges = new OvsDBSet<>();
                 UUID bridgeUuidPair = new UUID(newBridge);
                 bridges.add(bridgeUuidPair);
                 ovsTableRow.setBridges(bridges);
-                addSwitchRequest = new InsertOperation(ovsDbName, newSwitch, ovsTableRow);
+                addSwitchRequest = new InsertOperation(dbName, newSwitch, ovsTableRow);
             }
 
             Bridge bridgeRow = new Bridge();
@@ -138,7 +151,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             Mutation mutation = new Mutation("next_cfg", Mutator.SUM, 1);
             UUID uuid = new UUID(ovsTableUUID);
             Condition where = new Condition("_uuid", Function.EQUALS, uuid);
-            MutateOperation updateCfgVerRequest = new MutateOperation(ovsDbName, where, mutation);
+            MutateOperation updateCfgVerRequest = new MutateOperation(dbName, where, mutation);
 
             TransactBuilder transaction = makeTransaction(Arrays.asList(
                 addSwitchRequest, addIntfRequest, addPortRequest,
@@ -467,7 +480,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             if (connection == null) {
                 return new Status(StatusCode.NOSERVICE, "Connection to ovsdb-server not available");
             }
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, ovsDbName);
+            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node,
+                                                                                    dbName);
             Map<String, Table<?>> brTable = inventoryServiceInternal.getTableCache(node, Bridge.NAME.getName());
             String ovsUuid = null;
             String brUuid = null;
@@ -488,7 +502,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             Mutation mutation = new Mutation("bridges", Mutator.DELETE, bridgeUuidPair);
             UUID uuid = new UUID(ovsUuid);
             Condition where = new Condition("_uuid", Function.EQUALS, uuid);
-            Operation delBrRequest = new MutateOperation(ovsDbName, where, mutation);
+            Operation delBrRequest = new MutateOperation(dbName, where, mutation);
 
             TransactBuilder transaction = makeTransaction(delBrRequest);
 
@@ -565,6 +579,8 @@ public class ConfigurationService extends ConfigurationServiceBase
     public StatusWithUuid insertRow(Node node, String tableName, String parent_uuid, Table<?> row) {
         logger.debug("tableName : {}, parent_uuid : {} Row : {}", tableName, parent_uuid, row.toString());
         StatusWithUuid statusWithUUID = null;
+
+        this.dbName = Open_vSwitch.NAME.getName();
 
         // Schema based Table handling will help fix this static Table handling.
 
@@ -718,7 +734,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         String rowName=bridgeRow.getName();
 
         try{
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, ovsDbName);
+            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node,
+                                                                                    dbName);
 
             if (ovsTable == null) {
                 return new StatusWithUuid(StatusCode.NOTFOUND, "There are no Open_vSwitch instance in the Open_vSwitch table");
@@ -732,7 +749,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             Mutation mutation = new Mutation("bridges", Mutator.INSERT, bridgeUuid);
             UUID uuid = new UUID(ovsTableUUID);
             Condition where = new Condition("_uuid", Function.EQUALS, uuid);
-            Operation addSwitchRequest = new MutateOperation(ovsDbName, where, mutation);
+            Operation addSwitchRequest = new MutateOperation(dbName, where, mutation);
 
             InsertOperation addBridgeRequest = new InsertOperation(Bridge.NAME.getName(), newBridge, bridgeRow);
 
@@ -750,13 +767,13 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     private TransactBuilder makeTransaction(Operation req) {
-        TransactBuilder tr = new TransactBuilder(ovsDbName);
+        TransactBuilder tr = new TransactBuilder(dbName);
         tr.addOperation(req);
         return tr;
     }
 
     private TransactBuilder makeTransaction(List<Operation> reqs) {
-        TransactBuilder tr = new TransactBuilder(ovsDbName);
+        TransactBuilder tr = new TransactBuilder(dbName);
         tr.addOperations(reqs);
         return tr;
     }
@@ -909,7 +926,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         String rowName=SSL.NAME.getName();
 
         try{
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, ovsDbName);
+            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node,
+                                                                                    dbName);
 
             if (ovsTable == null) {
                 return new StatusWithUuid(StatusCode.NOTFOUND, "There are no Open_vSwitch instance in the Open_vSwitch table");
@@ -923,11 +941,11 @@ public class ConfigurationService extends ConfigurationServiceBase
             Mutation mutation = new Mutation("ssl", Mutator.INSERT, sslUuid);
             UUID uuid = new UUID(ovsTableUUID);
             Condition where = new Condition("_uuid", Function.EQUALS, uuid);
-            Operation addOpen_vSwitchRequest = new MutateOperation(ovsDbName, where, mutation);
+            Operation addOpen_vSwitchRequest = new MutateOperation(dbName, where, mutation);
 
             InsertOperation addSSLRequest = new InsertOperation(SSL.NAME.getName(), newSSL, row);
 
-            TransactBuilder transaction = new TransactBuilder(ovsDbName);
+            TransactBuilder transaction = new TransactBuilder(dbName);
             transaction.addOperations(Arrays.asList(addSSLRequest,
                                                     addOpen_vSwitchRequest));
 
@@ -967,7 +985,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             InsertOperation addSflowRequest = new InsertOperation(SFlow.NAME.getName(), newSflow, row);
 
-            TransactBuilder transaction = new TransactBuilder(ovsDbName);
+            TransactBuilder transaction = new TransactBuilder(dbName);
             transaction.addOperations(Arrays.asList(addSflowRequest,
                                                     addBridgeRequest));
 
@@ -1002,7 +1020,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             String newQueue = "new_queue";
             InsertOperation addQueueRequest = new InsertOperation(Queue.NAME.getName(), newQueue, row);
 
-            TransactBuilder transaction = new TransactBuilder(ovsDbName);
+            TransactBuilder transaction = new TransactBuilder(dbName);
             transaction.addOperations(new ArrayList<Operation>(Arrays.asList(addQueueRequest)));
 
             int queueInsertIndex = transaction.getRequests().indexOf(addQueueRequest);
@@ -1142,7 +1160,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         String rowName = Manager.NAME.getName();
 
         try{
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, ovsDbName);
+            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node,
+                                                                                    dbName);
 
             if (ovsTable == null) {
                 return new StatusWithUuid(StatusCode.NOTFOUND, "There are no Open_vSwitch instance in the Open_vSwitch table");
@@ -1156,7 +1175,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             Mutation mutation = new Mutation("manager_options", Mutator.INSERT, managerUuid);
             UUID uuid = new UUID(ovsTableUUID);
             Condition where = new Condition("_uuid", Function.EQUALS, uuid);
-            Operation  addSwitchRequest = new MutateOperation(ovsDbName, where, mutation);
+            Operation  addSwitchRequest = new MutateOperation(dbName, where, mutation);
 
             InsertOperation addManagerRequest = new InsertOperation(Manager.NAME.getName(), newManager, row);
 
@@ -1274,11 +1293,17 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _ovsconnect (CommandInterpreter ci) {
-        super._connect(ci);
+        String nodeName = ci.nextArgument();
+        if (nodeName == null) {
+            ci.println("Please enter node name");
+            return;
+        }
+        super._connect(nodeName, ci);
     }
 
     @SuppressWarnings("unused")
     public void _addBridge (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1302,6 +1327,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _getBridgeDomains (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1319,6 +1345,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _deleteBridgeDomain (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1341,6 +1368,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _addPort (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1393,6 +1421,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _deletePort (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1423,6 +1452,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _addPortVlan (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1470,6 +1500,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @SuppressWarnings("unused")
     public void _addTunnel (CommandInterpreter ci) {
+        this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
             ci.println("Please enter Node Name");
@@ -1527,7 +1558,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     public String getHelp() {
         StringBuilder help = new StringBuilder();
         help.append("---OVSDB CLI---\n");
-        help.append("\t ovsconnect <ConnectionName> <ip-address>                        - Connect to OVSDB\n");
+        help.append("\t ovstrconnect <ConnectionName> <ip-address>                        - Connect to OVSDB\n");
         help.append("\t addBridge <Node> <BridgeName>                                   - Add Bridge\n");
         help.append("\t getBridgeDomains <Node>                                         - Get Bridges\n");
         help.append("\t deleteBridgeDomain <Node> <BridgeName>                          - Delete a Bridge\n");
@@ -1538,5 +1569,507 @@ public class ConfigurationService extends ConfigurationServiceBase
         help.append("\t printCache <Node>                                               - Prints Table Cache");
         return help.toString();
     }
+
+
+    ///// VTEP STUFF
+
+    // vtepconnect <ip> <port>
+    public void _vtepConnect(CommandInterpreter ci) {
+        ci.print("Let's connect to the Hardware VTEP!");
+        this._connect("vtep", ci);
+    }
+
+    // vtepAddPs <name>
+    /*
+    public void _vtepAddPS(CommandInterpreter ci) {
+        this.dbName = "hardware_vtep";
+        ci.println("Let's add a physical switch");
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+
+        Map<String, Table<?>> globalCache =
+            inventoryServiceInternal.getCache(node).get("Global");
+        if (globalCache.isEmpty()) {
+            logger.error("There is no global!");
+            return;
+        }
+
+        String global = globalCache.keySet().iterator().next();
+        String name = ci.nextArgument();
+        String tunnelIp = ci.nextArgument();
+
+        OvsDBSet<String> tunnelIps = new OvsDBSet<>();
+        tunnelIps.add(tunnelIp);
+        Physical_Switch row = new Physical_Switch();
+        row.setName(name);
+        row.setDescription("Physical_Switch_" + name);
+        row.setTunnel_ips(tunnelIps);
+
+        UUID newSwUuid = new UUID("new_switch");
+        Mutation m = new Mutation("switches", Mutator.INSERT, newSwUuid);
+        UUID globalUuid = new UUID(global);
+        Condition where = new Condition("_uuid", Function.EQUALS, globalUuid);
+        Operation mr = new MutateOperation(Global.NAME.getName(), where, m);
+        InsertOperation ins = new InsertOperation(Physical_Switch.NAME.getName(),
+                                                  "new_switch", row);
+
+        TransactBuilder tr = makeTransaction(Arrays.asList(mr, ins));
+        int insIdx = tr.getRequests().indexOf(ins);
+        StatusWithUuid status = _insertTableRow(node, tr, insIdx, "ERROR inserting", name);
+
+        ci.println("Done, result = " + status);
+        ci.println("Bridge ID = " + status.getUuid());
+    }
+    */
+
+    // vtepAddPsPort <phys_br_name> <port_name>
+    // this is a bit awkward: the emulator monitors the ovs bridge for
+    // consistency and makes sure that all its ports are also in the emulated
+    // vtep one. So, the maybe this needs to be refactored and changed so it
+    // actually does an ovs-vsctl add-port <phys_br_name> <port_name> and lets
+    // the emulator put them in sync.
+    public void _vtepAddPsPort(CommandInterpreter ci) {
+        this.dbName = "hardware_vtep";
+        ci.println("Let's add a physical port");
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+
+        String psName = ci.nextArgument();
+        UUID psUuid = findPhysicalSwitch(node, psName);
+        if (psUuid == null) {
+            logger.error("Physical switch " + psName + " not found");
+            return;
+        }
+
+        String portName = ci.nextArgument();
+
+        UUID newPortUuid = new UUID("new_ps_port");
+        Mutation m = new Mutation("ports", Mutator.INSERT, newPortUuid);
+        Condition where = new Condition("_uuid", Function.EQUALS, psUuid);
+        Operation mr = new MutateOperation(Physical_Switch.NAME.getName(),
+                                           where, m);
+
+        Physical_Port row = new Physical_Port();
+        row.setName(portName);
+        row.setVlan_bindings(new OvsDBMap<Integer, UUID>());
+        InsertOperation ins = new InsertOperation(Physical_Port.NAME.getName(),
+                                                  "new_ps_port", row);
+
+        TransactBuilder tr = makeTransaction(Arrays.asList(mr, ins));
+        try {
+            List<OperationResult> opsRes = getConnection(node)
+                                          .getRpc().transact(tr).get();
+            for (OperationResult opRes : opsRes) {
+                if (opRes.getError() != null) {
+                    logger.error("ERROR! " + opRes);
+                } else {
+                    logger.info("OK! " + opRes);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Something went wrong adding port", e);
+            return;
+        }
+
+        ci.println("Done");
+    }
+
+    public void _vtepAddLS(CommandInterpreter ci) {
+        ci.println("Let's add a logical switch");
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+
+        this.dbName = "hardware_vtep";
+        String vni = ci.nextArgument();
+        String name = ci.nextArgument();
+        Logical_Switch row = new Logical_Switch();
+        row.setName(name);
+        row.setTunnel_key(set(Integer.parseInt(vni)));
+        StatusWithUuid status = this.insLogicalSwitch(node, row);
+        ci.println("Done (" + status.getDescription() +
+                   "), uuid: " + status.getUuid());
+    }
+
+    public void _vtepBindVlan(CommandInterpreter ci) {
+        this.dbName = "hardware_vtep";
+        ci.println("Let's bind a vlan");
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+
+        String vlan = ci.nextArgument();
+        String lsName = ci.nextArgument();
+        String portName = ci.nextArgument();
+
+        UUID lsUuid = findLogicalSwitch(node, lsName);
+        if (lsUuid == null) {
+            logger.error("Logical switch " + lsName + " not found");
+            return;
+        }
+
+        UUID portUUID = findPhysPort(node, portName);
+        if (portUUID == null) {
+            logger.error("Logical switch " + lsName + " not found");
+            return;
+        }
+
+        OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
+        vlanToLs.put(Integer.parseInt(vlan), lsUuid);
+        Mutation m = new Mutation("vlan_bindings", Mutator.INSERT, vlanToLs);
+        Condition where = new Condition("_uuid", Function.EQUALS, portUUID);
+        Operation mutReq = new MutateOperation(Physical_Port.NAME.getName(),
+                                               where, m);
+
+        TransactBuilder tr = makeTransaction(mutReq);
+        try {
+            OperationResult opRes = getConnection(node)
+                                    .getRpc().transact(tr).get().get(0);
+            if (opRes.getError() != null) {
+                logger.error("Error binding vlan " + opRes.getError() +
+                             ", " + opRes.getDetails());
+                return;
+            }
+            ci.println("Binding added succesfully");
+        } catch (Exception e) {
+            logger.error("Can't add vlan binding to port", e);
+        }
+
+    }
+
+    public void _vtepAddUcastRemote(CommandInterpreter ci) {
+
+        this.dbName = "hardware_vtep";
+        ci.println("Adding remote ucast, args: ls mac vtep_ip mac_ip");
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+
+        String ls = ci.nextArgument();
+        String mac = ci.nextArgument();
+        String vtepIp = ci.nextArgument();
+        String macIp = ci.nextArgument();
+
+
+        UUID lsUuid = findLogicalSwitch(node, ls);
+        if (lsUuid == null) {
+            ci.println("No logical switch named " + ls);
+            return;
+        }
+
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        UUID plUuid= findPhysLocator(node, vtepIp);
+        if (plUuid == null) {
+            ci.println("New physical locator needed for " + vtepIp);
+            String newPlName = "new_pl";
+            plUuid = new UUID(newPlName);
+            Physical_Locator pl = new Physical_Locator();
+            pl.setDst_ip(vtepIp);
+            pl.setEncapsulation_type("vxlan_over_ipv4");
+            transaction.addOperation(new InsertOperation(
+                Physical_Locator.NAME.getName(), newPlName, pl));
+        }
+        Ucast_Macs_Remote row = new Ucast_Macs_Remote();
+        row.setMac(mac);
+        row.setLocator(set(plUuid));
+        row.setIpaddr(macIp);
+        row.setLogical_switch(set(lsUuid));
+        Operation op = new InsertOperation(Ucast_Macs_Remote.NAME.getName(),
+                                           "new_ucast_mac", row);
+        int insertIdx = transaction.getRequests().indexOf(op);
+        transaction.addOperation(op);
+        StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
+                        Ucast_Macs_Remote.NAME.getName(), "new_ucast_mac");
+        ci.println("Result: " + st.getCode());
+    }
+
+    public void _vtepAddMcastRemote(CommandInterpreter ci) {
+        ci.println("Adding remote ucast, args: ls mac vtep_ip");
+
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+
+        String ls = ci.nextArgument();
+        String mac = ci.nextArgument();
+        String ip = ci.nextArgument();
+
+        UUID lsUuid = findLogicalSwitch(node, ls);
+        if (lsUuid == null) {
+            ci.println("No logical switch named " + ls);
+            return;
+        }
+
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        UUID plUuid= findPhysLocator(node, ip);
+        if (plUuid == null) {
+            ci.println("New physical locator needed for " + ip);
+            String newPlName = "new_pl";
+            plUuid = new UUID(newPlName);
+            Physical_Locator pl = new Physical_Locator();
+            pl.setDst_ip(ip);
+            pl.setEncapsulation_type("vxlan_over_ipv4");
+            transaction.addOperation(new InsertOperation(
+                Physical_Locator.NAME.getName(), newPlName, pl));
+        }
+
+        String newPlsName = "new_pls_name";
+        UUID plsUuid = new UUID(newPlsName);
+        Physical_Locator_Set pls = new Physical_Locator_Set();
+        pls.setLocators(set(plUuid));
+        transaction.addOperation(new InsertOperation(
+            Physical_Locator_Set.NAME.getName(), newPlsName, pls));
+
+        Mcast_Macs_Remote row = new Mcast_Macs_Remote();
+        row.setMac(mac);
+        row.setLocator_set(set(plsUuid));
+        row.setLogical_switch(set(lsUuid));
+        Operation op = new InsertOperation(Mcast_Macs_Remote.NAME.getName(),
+                                           "new_mcast_mac", row);
+        int insertIdx = transaction.getRequests().indexOf(op);
+        transaction.addOperation(op);
+        StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
+                                            Mcast_Macs_Remote.NAME.getName(),
+                                            "new_mcast_mac");
+        ci.println("Result: " + st.getCode());
+    }
+
+    public void _vtepListPs(CommandInterpreter ci) {
+        list(ci, Physical_Switch.NAME.getName());
+    }
+
+    public void _vtepListLs(CommandInterpreter ci) {
+        list(ci, Logical_Switch.NAME.getName());
+    }
+
+    public void _vtepListPsPorts(CommandInterpreter ci) {
+        list(ci, Physical_Port.NAME.getName());
+    }
+
+    public void _vtepListMcastMacs(CommandInterpreter ci) {
+        list(ci, Mcast_Macs_Local.NAME.getName());
+        ci.println("------");
+        list(ci, Mcast_Macs_Remote.NAME.getName());
+    }
+
+    public void _vtepListUcastMacs(CommandInterpreter ci) {
+        list(ci, Ucast_Macs_Local.NAME.getName());
+        ci.println("------");
+        list(ci, Ucast_Macs_Remote.NAME.getName());
+    }
+
+    private <T> OvsDBSet<T> set(T item) {
+        OvsDBSet<T> s = new OvsDBSet<>();
+        s.add(item);
+        return s;
+    }
+
+    private UUID findPhysicalSwitch(Node n, String psName) {
+        Map<String, Table<?>> psCache =
+            inventoryServiceInternal.getCache(n).get("Physical_Switch");
+        for (Map.Entry<String, Table<?>> e : psCache.entrySet()) {
+            Physical_Switch ps = (Physical_Switch)e.getValue();
+            if (ps.getName().equals(psName)) {
+                return new UUID(e.getKey());
+            }
+        }
+        return null;
+    }
+
+    private UUID findLogicalSwitch(Node n, String lsName) {
+        Map<String, Table<?>> lsCache =
+            inventoryServiceInternal.getCache(n).get("Logical_Switch");
+        for (Map.Entry<String, Table<?>> e : lsCache.entrySet()) {
+            Logical_Switch ls = (Logical_Switch)e.getValue();
+            if (ls.getName().equals(lsName)) {
+                return new UUID(e.getKey());
+            }
+        }
+        return null;
+    }
+
+    private UUID findPhysLocator(Node n, String ip) {
+
+        Map<String, Table<?>> plCache = inventoryServiceInternal.getCache(n)
+                                                                .get(Physical_Locator.NAME.getName());
+        for (Map.Entry<String, Table<?>> e : plCache.entrySet()) {
+            Physical_Locator pl = (Physical_Locator)e.getValue();
+            if (pl.getDst_ip().equals(ip)) {
+                return new UUID(e.getKey());
+            }
+        }
+        return null;
+    }
+
+    private UUID findPhysPort(Node n, String portName) {
+        Map<String, Table<?>> portCache =
+            inventoryServiceInternal.getCache(n).get("Physical_Port");
+        for (Map.Entry<String, Table<?>> e : portCache.entrySet()) {
+            Physical_Port physPort = (Physical_Port)e.getValue();
+            if (physPort.getName().equals(portName)) {
+                return new UUID(e.getKey());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * From cache
+     */
+    private void list(CommandInterpreter ci, String tableName) {
+        this.dbName = "hardware_vtep";
+        ci.println("");
+        ci.println("Listing " + tableName);
+        ci.println("");
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            ci.println("Invalid node");
+            return;
+        }
+        Map<String, Table<?>> tableCache =
+            this.inventoryServiceInternal.getCache(node).get(tableName);
+        if (tableCache == null) {
+            ci.println("Table is empty: " + tableName);
+            return;
+        } else if (tableCache.isEmpty()) {
+            ci.println("> Table " + tableName + " is empty");
+            return;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            ci.println("> " + e.getValue());
+            ci.println("  uuid: " + e.getKey());
+        }
+        ci.println("");
+    }
+
+    private List<String> toColumns(Column[] cols) {
+        List<String> columns = new ArrayList<>();
+        columns.add("_uuid");
+        for (Column c : cols) { columns.add(c.toString()); }
+        return columns;
+    }
+
+    private void queryTable(CommandInterpreter ci, Node node, String tableName, Condition where, List<String> columns) {
+
+        this.dbName = "hardware_vtep";
+        Map<String, Table<?>> t = inventoryServiceInternal.getTableCache(node, tableName);
+        if (t == null) {
+            ci.println("Table cache not found");
+            return;
+        }
+
+        Operation opGet = new SelectOperation(tableName, where, columns);
+        TransactBuilder tr = makeTransaction(opGet);
+
+        try {
+            List<OperationResult> opRes = getConnection(node).getRpc().transact(tr).get();
+            logger.info("RESULT: {}", opRes);
+            for (OperationResult r : opRes) {
+                for (Object row : r.getRows()) {
+                    ci.println("--> " + row);
+                }
+            }
+        } catch (Exception e) {
+            ci.println("ERROR! " + e.getMessage());
+        }
+
+        this.dbName = Open_vSwitch.NAME.getName();
+
+    }
+
+    private StatusWithUuid insManager(Node node, String globalUuid,
+                                      Manager row) {
+        Map<String, Table<?>> globalTable = inventoryServiceInternal
+            .getTableCache(node, Global.NAME.getName());
+
+        if (globalTable == null) {
+            return new StatusWithUuid(StatusCode.NOTFOUND,
+                                      "No instance in the Global table");
+        }
+
+        if (globalUuid == null) {
+            globalUuid = globalTable.keySet().iterator().next();
+        }
+
+        String newManager = "new_manager";
+        Operation opMutateGlobal = new MutateOperation(
+            Global.NAME.getName(),
+            new Condition("_uuid", Function.EQUALS, new UUID(globalUuid)),
+            new Mutation("managers", Mutator.INSERT, new UUID(newManager))
+        );
+
+        String tableName = Manager.NAME.getName();
+        Operation opInsertManager = new
+            InsertOperation(tableName, newManager, row);
+
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        transaction.addOperations(Arrays.asList(opMutateGlobal,
+                                                opInsertManager));
+
+        int insertIndex = transaction.getRequests().indexOf(opMutateGlobal);
+        return _insertTableRow(node, transaction, insertIndex,
+                               tableName, tableName);
+    }
+
+    private StatusWithUuid insPhysicalPort(Node node, String switchUuid,
+                                           Physical_Port row) {
+        String pSwitchTableName = Physical_Switch.NAME.getName();
+
+        Map<String, Table<?>> swTable =
+            inventoryServiceInternal.getTableCache(node, pSwitchTableName);
+
+        if (swTable == null || swTable.get(switchUuid) == null) {
+            return new StatusWithUuid(StatusCode.NOTFOUND,
+                              "No instance in the "+pSwitchTableName+ " table");
+        }
+
+        String newPort = "new_phys_port";
+        UUID portUuid = new UUID(newPort);
+        UUID physSwitchUuid = new UUID(switchUuid);
+
+        // add to the phys switch table's "ports" column
+        Operation opMutateSwitch = new MutateOperation(
+            Physical_Switch.NAME.getName(),
+            new Condition("_uuid", Function.EQUALS, physSwitchUuid),
+            new Mutation("ports", Mutator.INSERT, portUuid)
+        );
+
+        // the port row
+        String rowName = Physical_Port.NAME.getName();
+        Operation opInsPort = new InsertOperation(rowName, newPort, row);
+
+        try {
+            TransactBuilder transaction = makeTransaction(Arrays.asList(
+                opMutateSwitch, opInsPort));
+            int insertIdx = transaction.getRequests().indexOf(opInsPort);
+            return _insertTableRow(node, transaction, insertIdx,
+                                   "error inserting port", "ports");
+        } catch (Exception e) {
+            logger.error("Exception inserting physical port", e);
+        }
+        return new StatusWithUuid(StatusCode.INTERNALERROR);
+    }
+
+    private StatusWithUuid insLogicalSwitch(Node node,
+                                            Logical_Switch row) {
+        return doInsertTransact(node, Logical_Switch.NAME.getName(),
+                                "new_log_switch", row);
+    }
+
 }
 

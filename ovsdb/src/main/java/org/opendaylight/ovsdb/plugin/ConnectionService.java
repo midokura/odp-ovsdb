@@ -330,7 +330,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
             for (Table table : Tables.getTables(dbName)) {
                 String tableName = table.getTableName().getName();
                 if (dbSchemaTables.containsKey(tableName)) {
-                    logger.debug("Monitor table {} on db {}", tableName, dbName);
+                    logger.info("Monitor table {} on db {}", tableName, dbName);
                     monitorReq.monitor(table);
                 } else {
                     logger.warn("Table {} is known for schema {}, but not " +
@@ -346,7 +346,9 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
                                  updates.getError(), updates.getDetails());
                     /* FIXME: This should be cause for alarm */
                     throw new RuntimeException("Failed to setup a monitor in " +
-                                               "OVSDB " + dbName);
+                                               "OVSDB, db name: " + dbName);
+                } else {
+                    logger.info("Monitors set up successfully in db {}", dbName);
                 }
                 UpdateNotification monitor = new UpdateNotification();
                 monitor.setUpdate(updates);

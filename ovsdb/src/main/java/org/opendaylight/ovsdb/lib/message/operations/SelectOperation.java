@@ -9,6 +9,7 @@
  */
 package org.opendaylight.ovsdb.lib.message.operations;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.opendaylight.ovsdb.lib.notation.Condition;
@@ -25,6 +26,15 @@ public class SelectOperation extends Operation {
         this.where = where;
         this.columns = columns;
     }
+    public SelectOperation(String table, Condition where, List<String> columns) {
+        super();
+        super.setOp("select");
+        this.table = table;
+        this.columns = columns;
+        this.where = new ArrayList<>();
+        this.where.add(where);
+    }
+
     public String getTable() {
         return table;
     }
