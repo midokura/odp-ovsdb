@@ -12,7 +12,9 @@ package org.opendaylight.ovsdb.plugin;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.eclipse.osgi.framework.console.CommandInterpreter;
 import org.opendaylight.controller.sal.core.Node;
+import org.opendaylight.controller.sal.utils.Status;
 import org.opendaylight.controller.sal.utils.StatusCode;
 import org.opendaylight.ovsdb.lib.message.TransactBuilder;
 import org.opendaylight.ovsdb.lib.message.operations.InsertOperation;
@@ -39,14 +41,14 @@ import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Remote;
 /**
  * Offers VTEP configuration operations.
  */
-public class VtepConfigurationService extends ConfigurationServiceBase {
+public class VtepConfigurationService extends ConfigurationService {
 
     @Override
     String getDatabaseName() { return "hardware_vtep"; }
 
-    StatusWithUuid insertRow(Node node, String parentUuid, Table<?> row) {
+    @Override
+    public StatusWithUuid insertRow(Node node, String tableName,String parentUuid, Table<?> row) {
         StatusWithUuid statusWithUUID = null;
-        String tableName = row.getTableName().getName();
 
         try {
             if (tableName.equalsIgnoreCase("Physical_Port")) {
@@ -91,6 +93,12 @@ public class VtepConfigurationService extends ConfigurationServiceBase {
         }
 
         return statusWithUUID;
+    }
+
+
+    @Override
+    public Status deleteRow(Node node, String tableName, String uuid) {
+        return new Status(StatusCode.NOTIMPLEMENTED, "Deletions in VTEP schema not supported (yet)");
     }
 
     // INSERTS
@@ -251,13 +259,17 @@ public class VtepConfigurationService extends ConfigurationServiceBase {
     }
 
     private StatusWithUuid insLogicalRouter(Node node,
-                                            String parentUuid, Table<?> row) {
+                                                String parentUuid, Table<?> row) {
         return null;
     }
 
     private StatusWithUuid insLogicalBindingStats(Node node, String parentUuid,
                                                   Table<?> row) {
         return null;
+    }
+
+    public void _hello(CommandInterpreter ci) {
+        ci.println("HELLO!!!!");
     }
 
     @Override

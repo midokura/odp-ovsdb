@@ -1,5 +1,6 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
@@ -14,7 +15,7 @@ public class Physical_Switch extends Table<Physical_Switch> {
         name,
         management_ips,
         ports,
-        switchFaultStatus,
+        switch_fault_status,
         tunnel_ips
     }
 
@@ -26,6 +27,7 @@ public class Physical_Switch extends Table<Physical_Switch> {
     private OvsDBSet<String> tunnel_ips;
 
     @Override
+    @JsonIgnore
     public Name<Physical_Switch> getTableName() { return NAME; }
 
     @Override

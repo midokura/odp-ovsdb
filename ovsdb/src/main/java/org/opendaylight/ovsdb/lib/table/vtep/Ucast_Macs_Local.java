@@ -1,5 +1,8 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
 import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
@@ -15,12 +18,14 @@ public class Ucast_Macs_Local extends Table<Ucast_Macs_Local> {
         ipaddr
     }
 
+    @JsonProperty(value="MAC")
     private String mac;
-    private UUID logical_switch;
-    private UUID locator;
+    private OvsDBSet<UUID> logical_switch;
+    private OvsDBSet<UUID> locator;
     private String ipaddr;
 
     @Override
+    @JsonIgnore
     public Name<Ucast_Macs_Local> getTableName() { return NAME; }
 
     @Override
@@ -41,19 +46,19 @@ public class Ucast_Macs_Local extends Table<Ucast_Macs_Local> {
         this.mac = mac;
     }
 
-    public UUID getLogical_switch() {
+    public OvsDBSet<UUID> getLogical_switch() {
         return logical_switch;
     }
 
-    public void setLogical_switch(UUID logical_switch) {
+    public void setLogical_switch(OvsDBSet<UUID> logical_switch) {
         this.logical_switch = logical_switch;
     }
 
-    public UUID getLocator() {
+    public OvsDBSet<UUID> getLocator() {
         return locator;
     }
 
-    public void setLocator(UUID locator) {
+    public void setLocator(OvsDBSet<UUID> locator) {
         this.locator = locator;
     }
 
