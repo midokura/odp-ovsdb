@@ -14,9 +14,11 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -725,7 +727,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     public List<String> getTables(Node node) {
         ConcurrentMap<String, ConcurrentMap<String, Table<?>>> cache  = inventoryServiceInternal.getCache(node);
         if (cache == null) return null;
-        return new ArrayList<String>(cache.keySet());
+        return new ArrayList<>(cache.keySet());
     }
 
     private StatusWithUuid insertBridgeRow(Node node, String open_VSwitch_uuid, Bridge bridgeRow) {
@@ -1579,52 +1581,6 @@ public class ConfigurationService extends ConfigurationServiceBase
         this._connect("vtep", ci);
     }
 
-    // vtepAddPs <name>
-    /*
-    public void _vtepAddPS(CommandInterpreter ci) {
-        this.dbName = "hardware_vtep";
-        ci.println("Let's add a physical switch");
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
-        }
-
-        Map<String, Table<?>> globalCache =
-            inventoryServiceInternal.getCache(node).get("Global");
-        if (globalCache.isEmpty()) {
-            logger.error("There is no global!");
-            return;
-        }
-
-        String global = globalCache.keySet().iterator().next();
-        String name = ci.nextArgument();
-        String tunnelIp = ci.nextArgument();
-
-        OvsDBSet<String> tunnelIps = new OvsDBSet<>();
-        tunnelIps.add(tunnelIp);
-        Physical_Switch row = new Physical_Switch();
-        row.setName(name);
-        row.setDescription("Physical_Switch_" + name);
-        row.setTunnel_ips(tunnelIps);
-
-        UUID newSwUuid = new UUID("new_switch");
-        Mutation m = new Mutation("switches", Mutator.INSERT, newSwUuid);
-        UUID globalUuid = new UUID(global);
-        Condition where = new Condition("_uuid", Function.EQUALS, globalUuid);
-        Operation mr = new MutateOperation(Global.NAME.getName(), where, m);
-        InsertOperation ins = new InsertOperation(Physical_Switch.NAME.getName(),
-                                                  "new_switch", row);
-
-        TransactBuilder tr = makeTransaction(Arrays.asList(mr, ins));
-        int insIdx = tr.getRequests().indexOf(ins);
-        StatusWithUuid status = _insertTableRow(node, tr, insIdx, "ERROR inserting", name);
-
-        ci.println("Done, result = " + status);
-        ci.println("Bridge ID = " + status.getUuid());
-    }
-    */
-
     // vtepAddPsPort <phys_br_name> <port_name>
     // this is a bit awkward: the emulator monitors the ovs bridge for
     // consistency and makes sure that all its ports are also in the emulated
@@ -1634,20 +1590,28 @@ public class ConfigurationService extends ConfigurationServiceBase
     public void _vtepAddPsPort(CommandInterpreter ci) {
         this.dbName = "hardware_vtep";
         ci.println("Let's add a physical port");
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
-        }
 
         String psName = ci.nextArgument();
+        String portName = ci.nextArgument();
+
+        vtepAddPhysicalSwitchPort(psName, portName);
+
+        ci.println("Done!");
+    }
+
+    public Status vtepAddPhysicalSwitchPort(String psName, String portName) {
+
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
+
         UUID psUuid = findPhysicalSwitch(node, psName);
         if (psUuid == null) {
             logger.error("Physical switch " + psName + " not found");
-            return;
+            return new StatusWithUuid(StatusCode.NOTFOUND);
         }
-
-        String portName = ci.nextArgument();
 
         UUID newPortUuid = new UUID("new_ps_port");
         Mutation m = new Mutation("ports", Mutator.INSERT, newPortUuid);
@@ -1674,54 +1638,61 @@ public class ConfigurationService extends ConfigurationServiceBase
             }
         } catch (Exception e) {
             logger.error("Something went wrong adding port", e);
-            return;
         }
 
-        ci.println("Done");
+        return new Status(StatusCode.SUCCESS);
+
     }
 
     public void _vtepAddLS(CommandInterpreter ci) {
         ci.println("Let's add a logical switch");
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
-        }
-
         this.dbName = "hardware_vtep";
         String vni = ci.nextArgument();
         String name = ci.nextArgument();
+        StatusWithUuid status = vtepAddLogicalSwitch(name, vni);
+        ci.println("Done (" + status.getDescription() +
+                   "), uuid: " + status.getUuid());
+    }
+
+    public StatusWithUuid vtepAddLogicalSwitch(String name, String vni) {
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
         Logical_Switch row = new Logical_Switch();
         row.setName(name);
         row.setTunnel_key(set(Integer.parseInt(vni)));
-        StatusWithUuid status = this.insLogicalSwitch(node, row);
-        ci.println("Done (" + status.getDescription() +
-                   "), uuid: " + status.getUuid());
+        return this.insLogicalSwitch(node, row);
     }
 
     public void _vtepBindVlan(CommandInterpreter ci) {
         this.dbName = "hardware_vtep";
         ci.println("Let's bind a vlan");
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
-        }
-
         String vlan = ci.nextArgument();
         String lsName = ci.nextArgument();
         String portName = ci.nextArgument();
+        vtepBindVlan(lsName, portName, vlan);
+    }
+
+    public Status vtepBindVlan(String lsName, String portName, String vlan) {
+
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
 
         UUID lsUuid = findLogicalSwitch(node, lsName);
         if (lsUuid == null) {
             logger.error("Logical switch " + lsName + " not found");
-            return;
+            return new Status(StatusCode.NOTFOUND);
         }
 
         UUID portUUID = findPhysPort(node, portName);
         if (portUUID == null) {
             logger.error("Logical switch " + lsName + " not found");
-            return;
+            return new Status(StatusCode.NOTFOUND);
         }
 
         OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
@@ -1738,41 +1709,50 @@ public class ConfigurationService extends ConfigurationServiceBase
             if (opRes.getError() != null) {
                 logger.error("Error binding vlan " + opRes.getError() +
                              ", " + opRes.getDetails());
-                return;
+                return new Status(StatusCode.INTERNALERROR);
             }
-            ci.println("Binding added succesfully");
         } catch (Exception e) {
             logger.error("Can't add vlan binding to port", e);
+            return new Status(StatusCode.INTERNALERROR);
         }
 
+        Status st = new Status(StatusCode.SUCCESS);
+        logger.info("Result: " + st.getCode());
+        return st;
     }
 
     public void _vtepAddUcastRemote(CommandInterpreter ci) {
 
         this.dbName = "hardware_vtep";
         ci.println("Adding remote ucast, args: ls mac vtep_ip mac_ip");
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
-        }
 
         String ls = ci.nextArgument();
         String mac = ci.nextArgument();
         String vtepIp = ci.nextArgument();
         String macIp = ci.nextArgument();
 
+        vtepAddUcastRemote(ls, mac, vtepIp, macIp);
+    }
+
+    public StatusWithUuid vtepAddUcastRemote(String ls, String mac, String vtepIp,
+                                     String macIp) {
+
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
 
         UUID lsUuid = findLogicalSwitch(node, ls);
         if (lsUuid == null) {
-            ci.println("No logical switch named " + ls);
-            return;
+            logger.error("No logical switch named " + ls);
+            return new StatusWithUuid(StatusCode.NOTFOUND);
         }
 
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
         UUID plUuid= findPhysLocator(node, vtepIp);
         if (plUuid == null) {
-            ci.println("New physical locator needed for " + vtepIp);
+            logger.info("New physical locator needed for " + vtepIp);
             String newPlName = "new_pl";
             plUuid = new UUID(newPlName);
             Physical_Locator pl = new Physical_Locator();
@@ -1792,33 +1772,36 @@ public class ConfigurationService extends ConfigurationServiceBase
         transaction.addOperation(op);
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
                         Ucast_Macs_Remote.NAME.getName(), "new_ucast_mac");
-        ci.println("Result: " + st.getCode());
+        logger.info("Result: " + st.getCode());
+        return st;
     }
 
     public void _vtepAddMcastRemote(CommandInterpreter ci) {
         ci.println("Adding remote ucast, args: ls mac vtep_ip");
-
         this.dbName = "hardware_vtep";
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
-        }
-
         String ls = ci.nextArgument();
         String mac = ci.nextArgument();
         String ip = ci.nextArgument();
+        vtepAddMcastRemote(ls, mac, ip);
+    }
+    public StatusWithUuid vtepAddMcastRemote(String ls, String mac, String ip) {
+
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
 
         UUID lsUuid = findLogicalSwitch(node, ls);
         if (lsUuid == null) {
-            ci.println("No logical switch named " + ls);
-            return;
+            logger.error("No logical switch named " + ls);
+            return new StatusWithUuid(StatusCode.NOTFOUND);
         }
 
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
         UUID plUuid= findPhysLocator(node, ip);
         if (plUuid == null) {
-            ci.println("New physical locator needed for " + ip);
+            logger.info("New physical locator needed for " + ip);
             String newPlName = "new_pl";
             plUuid = new UUID(newPlName);
             Physical_Locator pl = new Physical_Locator();
@@ -1846,31 +1829,32 @@ public class ConfigurationService extends ConfigurationServiceBase
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
                                             Mcast_Macs_Remote.NAME.getName(),
                                             "new_mcast_mac");
-        ci.println("Result: " + st.getCode());
+        logger.info("Result: " + st.getCode());
+        return st;
     }
 
     public void _vtepListPs(CommandInterpreter ci) {
-        list(ci, Physical_Switch.NAME.getName());
+        listToCI(ci, Physical_Switch.NAME.getName());
     }
 
     public void _vtepListLs(CommandInterpreter ci) {
-        list(ci, Logical_Switch.NAME.getName());
+        listToCI(ci, Logical_Switch.NAME.getName());
     }
 
     public void _vtepListPsPorts(CommandInterpreter ci) {
-        list(ci, Physical_Port.NAME.getName());
+        listToCI(ci, Physical_Port.NAME.getName());
     }
 
     public void _vtepListMcastMacs(CommandInterpreter ci) {
-        list(ci, Mcast_Macs_Local.NAME.getName());
+        listToCI(ci, Mcast_Macs_Local.NAME.getName());
         ci.println("------");
-        list(ci, Mcast_Macs_Remote.NAME.getName());
+        listToCI(ci, Mcast_Macs_Remote.NAME.getName());
     }
 
     public void _vtepListUcastMacs(CommandInterpreter ci) {
-        list(ci, Ucast_Macs_Local.NAME.getName());
+        listToCI(ci, Ucast_Macs_Local.NAME.getName());
         ci.println("------");
-        list(ci, Ucast_Macs_Remote.NAME.getName());
+        listToCI(ci, Ucast_Macs_Remote.NAME.getName());
     }
 
     private <T> OvsDBSet<T> set(T item) {
@@ -1929,28 +1913,38 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
+     * From cache.
+     * @param tableName
+     * @return
+     */
+    private Set<Map.Entry<String, Table<?>>> list(String tableName) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null) {
+            logger.error("Invalid node OVS|vtep");
+            return new HashSet<>();
+        }
+        Map<String, Table<?>> tableCache =
+            this.inventoryServiceInternal.getCache(node).get(tableName);
+        if (tableCache == null || tableCache.isEmpty()) {
+            return new HashSet<>();
+        }
+        return tableCache.entrySet();
+    }
+
+    /**
      * From cache
      */
-    private void list(CommandInterpreter ci, String tableName) {
+    private void listToCI(CommandInterpreter ci, String tableName) {
         this.dbName = "hardware_vtep";
         ci.println("");
         ci.println("Listing " + tableName);
         ci.println("");
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            ci.println("Invalid node");
-            return;
+        Set<Map.Entry<String, Table<?>>> entries = list(tableName);
+        if (entries.isEmpty()) {
+            ci.println("No entries returned");
         }
-        Map<String, Table<?>> tableCache =
-            this.inventoryServiceInternal.getCache(node).get(tableName);
-        if (tableCache == null) {
-            ci.println("Table is empty: " + tableName);
-            return;
-        } else if (tableCache.isEmpty()) {
-            ci.println("> Table " + tableName + " is empty");
-            return;
-        }
-        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+        for (Map.Entry<String, Table<?>> e : entries) {
             ci.println("> " + e.getValue());
             ci.println("  uuid: " + e.getKey());
         }
