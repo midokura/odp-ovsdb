@@ -19,7 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import org.eclipse.osgi.framework.console.CommandInterpreter;
@@ -670,64 +669,6 @@ public class ConfigurationService extends ConfigurationServiceBase
             return deleteSSLRow(node, uuid);
         }
         return new Status(StatusCode.NOTFOUND, "Table "+tableName+" not supported");
-    }
-
-    @Override
-    public ConcurrentMap<String, Table<?>> getRows(Node node, String tableName) throws Exception{
-        try{
-            if (inventoryServiceInternal == null) {
-                throw new Exception("Inventory Service is Unavailable.");
-            }
-            ConcurrentMap<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, tableName);
-            return ovsTable;
-        } catch(Exception e){
-            throw new Exception("Unable to read table due to "+e.getMessage());
-        }
-    }
-
-    @Override
-    public Table<?> getRow(Node node, String tableName, String uuid) throws Exception {
-        try{
-            if (inventoryServiceInternal == null) {
-                throw new Exception("Inventory Service is Unavailable.");
-            }
-            Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, tableName);
-            if (ovsTable == null) return null;
-            return ovsTable.get(uuid);
-        } catch(Exception e){
-            throw new Exception("Unable to read table due to "+e.getMessage());
-        }
-    }
-
-    @Override
-    public String getSerializedRows(Node node, String tableName) throws Exception{
-        try{
-            Map<String, Table<?>> ovsTable = this.getRows(node, tableName);
-            if (ovsTable == null) return null;
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            return mapper.writeValueAsString(ovsTable);
-        } catch(Exception e){
-            throw new Exception("Unable to read table due to "+e.getMessage());
-        }
-    }
-
-    @Override
-    public String getSerializedRow(Node node, String tableName, String uuid) throws Exception {
-        try{
-            Table<?> row = this.getRow(node, tableName, uuid);
-            if (row == null) return null;
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            return mapper.writeValueAsString(row);
-        } catch(Exception e){
-            throw new Exception("Unable to read table due to "+e.getMessage());
-        }
-    }
-
-    @Override
-    public List<String> getTables(Node node) {
-        ConcurrentMap<String, ConcurrentMap<String, Table<?>>> cache  = inventoryServiceInternal.getCache(node);
-        if (cache == null) return null;
-        return new ArrayList<>(cache.keySet());
     }
 
     private StatusWithUuid insertBridgeRow(Node node, String open_VSwitch_uuid, Bridge bridgeRow) {

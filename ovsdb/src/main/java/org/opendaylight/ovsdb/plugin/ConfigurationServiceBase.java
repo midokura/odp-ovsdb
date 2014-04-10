@@ -2,12 +2,13 @@ package org.opendaylight.ovsdb.plugin;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ListenableFuture;
 import org.eclipse.osgi.framework.console.CommandInterpreter;
 import org.eclipse.osgi.framework.console.CommandProvider;
@@ -166,56 +167,61 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
     }
 
     @Override
-    public Map<String, Table<?>> getRows(Node node, String tableName) throws Exception{
-        try {
+    public ConcurrentMap<String, Table<?>> getRows(Node node, String tableName) throws Exception{
+        try{
             if (inventoryServiceInternal == null) {
                 throw new Exception("Inventory Service is Unavailable.");
             }
-            return inventoryServiceInternal.getTableCache(node, tableName);
-        } catch (Exception e){
+            ConcurrentMap<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, tableName);
+            return ovsTable;
+        } catch(Exception e){
             throw new Exception("Unable to read table due to "+e.getMessage());
         }
     }
 
     @Override
     public Table<?> getRow(Node node, String tableName, String uuid) throws Exception {
-        try {
+        try{
             if (inventoryServiceInternal == null) {
                 throw new Exception("Inventory Service is Unavailable.");
             }
             Map<String, Table<?>> ovsTable = inventoryServiceInternal.getTableCache(node, tableName);
-            return (ovsTable == null) ? null :  ovsTable.get(uuid);
-        } catch (Exception e){
+            if (ovsTable == null) return null;
+            return ovsTable.get(uuid);
+        } catch(Exception e){
             throw new Exception("Unable to read table due to "+e.getMessage());
         }
     }
 
     @Override
     public String getSerializedRows(Node node, String tableName) throws Exception{
-        try {
+        try{
             Map<String, Table<?>> ovsTable = this.getRows(node, tableName);
             if (ovsTable == null) return null;
-            return new ObjectMapper().writeValueAsString(ovsTable);
-        } catch (Exception e){
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            return mapper.writeValueAsString(ovsTable);
+        } catch(Exception e){
             throw new Exception("Unable to read table due to "+e.getMessage());
         }
     }
 
     @Override
     public String getSerializedRow(Node node, String tableName, String uuid) throws Exception {
-        try {
+        try{
             Table<?> row = this.getRow(node, tableName, uuid);
             if (row == null) return null;
-            return new ObjectMapper().writeValueAsString(row);
-        } catch (Exception e){
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            return mapper.writeValueAsString(row);
+        } catch(Exception e){
             throw new Exception("Unable to read table due to "+e.getMessage());
         }
     }
 
     @Override
     public List<String> getTables(Node node) {
-        // TODO Auto-generated method stub
-        return null;
+        ConcurrentMap<String, ConcurrentMap<String, Table<?>>> cache  = inventoryServiceInternal.getCache(node);
+        if (cache == null) return null;
+        return new ArrayList<>(cache.keySet());
     }
 
     /**
