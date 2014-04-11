@@ -74,10 +74,23 @@ import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Remote;
 public class ConfigurationService extends ConfigurationServiceBase
     implements IPluginInBridgeDomainConfigService {
 
-    private String dbName = Open_vSwitch.NAME.getName();
+    private String dbName = "hardware_vtep"; // Open_vSwitch.NAME.getName();
+
+    private Node defaultNode = null; // HACK: see setNode
 
     @Override
     String getDatabaseName() { return dbName; }
+
+    /**
+     * HACK: without the NodeFactory properly configured as within osgi, the
+     * cfg service can't find the OVS|vtep node, so this horrible thing allows
+     * giving the node.
+     *
+     * @param defaultNode
+     */
+    public void setDefaultNode(Node defaultNode) {
+        this.defaultNode = defaultNode;
+    }
 
     /**
      * Add a new bridge
@@ -1529,7 +1542,6 @@ public class ConfigurationService extends ConfigurationServiceBase
     // actually does an ovs-vsctl add-port <phys_br_name> <port_name> and lets
     // the emulator put them in sync.
     public void _vtepAddPsPort(CommandInterpreter ci) {
-        this.dbName = "hardware_vtep";
         ci.println("Let's add a physical port");
 
         String psName = ci.nextArgument();
@@ -1541,11 +1553,13 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     public Status vtepAddPhysicalSwitchPort(String psName, String portName) {
-
+        this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
+        if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
         }
 
         UUID psUuid = findPhysicalSwitch(node, psName);
@@ -1587,7 +1601,6 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     public void _vtepAddLS(CommandInterpreter ci) {
         ci.println("Let's add a logical switch");
-        this.dbName = "hardware_vtep";
         String vni = ci.nextArgument();
         String name = ci.nextArgument();
         StatusWithUuid status = vtepAddLogicalSwitch(name, vni);
@@ -1596,10 +1609,13 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     public StatusWithUuid vtepAddLogicalSwitch(String name, String vni) {
+        this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
+        if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
         }
         Logical_Switch row = new Logical_Switch();
         row.setName(name);
@@ -1608,7 +1624,6 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     public void _vtepBindVlan(CommandInterpreter ci) {
-        this.dbName = "hardware_vtep";
         ci.println("Let's bind a vlan");
         String vlan = ci.nextArgument();
         String lsName = ci.nextArgument();
@@ -1617,11 +1632,13 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     public Status vtepBindVlan(String lsName, String portName, String vlan) {
-
+        this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
+        if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
         }
 
         UUID lsUuid = findLogicalSwitch(node, lsName);
@@ -1664,7 +1681,6 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     public void _vtepAddUcastRemote(CommandInterpreter ci) {
 
-        this.dbName = "hardware_vtep";
         ci.println("Adding remote ucast, args: ls mac vtep_ip mac_ip");
 
         String ls = ci.nextArgument();
@@ -1678,10 +1694,13 @@ public class ConfigurationService extends ConfigurationServiceBase
     public StatusWithUuid vtepAddUcastRemote(String ls, String mac, String vtepIp,
                                      String macIp) {
 
+        this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
+        if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
         }
 
         UUID lsUuid = findLogicalSwitch(node, ls);
@@ -1719,7 +1738,6 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     public void _vtepAddMcastRemote(CommandInterpreter ci) {
         ci.println("Adding remote ucast, args: ls mac vtep_ip");
-        this.dbName = "hardware_vtep";
         String ls = ci.nextArgument();
         String mac = ci.nextArgument();
         String ip = ci.nextArgument();
@@ -1727,10 +1745,14 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
     public StatusWithUuid vtepAddMcastRemote(String ls, String mac, String ip) {
 
+        this.dbName = "hardware_vtep";
+
         Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
+        if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
         }
 
         UUID lsUuid = findLogicalSwitch(node, ls);
@@ -1861,9 +1883,11 @@ public class ConfigurationService extends ConfigurationServiceBase
     private Set<Map.Entry<String, Table<?>>> list(String tableName) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
-        if (node == null) {
-            logger.error("Invalid node OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
             return new HashSet<>();
+        } else if (node == null) {
+            node = defaultNode;
         }
         Map<String, Table<?>> tableCache =
             this.inventoryServiceInternal.getCache(node).get(tableName);

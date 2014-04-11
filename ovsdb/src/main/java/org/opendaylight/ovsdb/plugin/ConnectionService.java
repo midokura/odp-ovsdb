@@ -324,6 +324,10 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         // Set up monitors for all tables
         for (DatabaseSchema schema : dbSchemas) {
             String dbName = schema.getName();
+
+            if (!"hardware_vtep".equals(dbName))
+                continue;
+
             Map<String, TableSchema> dbSchemaTables = schema.getTables();
 
             MonitorRequestBuilder monitorReq = new MonitorRequestBuilder(dbName);
