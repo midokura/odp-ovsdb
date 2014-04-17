@@ -1829,6 +1829,9 @@ public class ConfigurationService extends ConfigurationServiceBase
     private UUID findPhysicalSwitch(Node n, String psName) {
         Map<String, Table<?>> psCache =
             inventoryServiceInternal.getCache(n).get("Physical_Switch");
+        if (psCache == null) {
+            return null;
+        }
         for (Map.Entry<String, Table<?>> e : psCache.entrySet()) {
             Physical_Switch ps = (Physical_Switch)e.getValue();
             if (ps.getName().equals(psName)) {
@@ -1841,6 +1844,9 @@ public class ConfigurationService extends ConfigurationServiceBase
     private UUID findLogicalSwitch(Node n, String lsName) {
         Map<String, Table<?>> lsCache =
             inventoryServiceInternal.getCache(n).get("Logical_Switch");
+        if (lsCache == null) {
+            return null;
+        }
         for (Map.Entry<String, Table<?>> e : lsCache.entrySet()) {
             Logical_Switch ls = (Logical_Switch)e.getValue();
             if (ls.getName().equals(lsName)) {
@@ -1854,6 +1860,10 @@ public class ConfigurationService extends ConfigurationServiceBase
 
         Map<String, Table<?>> plCache = inventoryServiceInternal.getCache(n)
                                                                 .get(Physical_Locator.NAME.getName());
+        if (plCache == null) {
+            return null;
+        }
+
         for (Map.Entry<String, Table<?>> e : plCache.entrySet()) {
             Physical_Locator pl = (Physical_Locator)e.getValue();
             if (pl.getDst_ip().equals(ip)) {
@@ -1866,6 +1876,9 @@ public class ConfigurationService extends ConfigurationServiceBase
     private UUID findPhysPort(Node n, String portName) {
         Map<String, Table<?>> portCache =
             inventoryServiceInternal.getCache(n).get("Physical_Port");
+        if (portCache == null) {
+            return null;
+        }
         for (Map.Entry<String, Table<?>> e : portCache.entrySet()) {
             Physical_Port physPort = (Physical_Port)e.getValue();
             if (physPort.getName().equals(portName)) {
