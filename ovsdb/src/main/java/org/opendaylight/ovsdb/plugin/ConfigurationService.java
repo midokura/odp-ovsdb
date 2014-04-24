@@ -1649,7 +1649,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
         UUID portUUID = findPhysPort(node, portName);
         if (portUUID == null) {
-            logger.error("Logical switch " + lsName + " not found");
+            logger.error("Physical port " + portName     + " not found");
             return new Status(StatusCode.NOTFOUND);
         }
 
