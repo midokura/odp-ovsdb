@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -1628,50 +1629,91 @@ public class ConfigurationService extends ConfigurationServiceBase
         String vlan = ci.nextArgument();
         String lsName = ci.nextArgument();
         String portName = ci.nextArgument();
-        vtepBindVlan(lsName, portName, vlan);
+        vtepBindVlan(lsName, portName, vlan, null);
     }
 
-    public Status vtepBindVlan(String lsName, String portName, String vlan) {
+    /**
+     * Will create a new binding using the given logical switch. If this does
+     * not exist and a VNi is provided, it will create a new LS.
+     *
+     * @param lsName
+     * @param portName
+     * @param vlan
+     * @param vni vni to use if
+     * @return
+     */
+    public Status vtepBindVlan(String lsName, String portName, String vlan,
+                               Integer vni) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
-            return new StatusWithUuid(StatusCode.NOTFOUND);
+            return new StatusWithUuid(StatusCode.NOTFOUND, "Invalid node");
         } else if (node == null) {
             node = defaultNode;
         }
 
         UUID lsUuid = findLogicalSwitch(node, lsName);
+        List<Operation> ops = new ArrayList<>();
         if (lsUuid == null) {
-            logger.error("Logical switch " + lsName + " not found");
-            return new Status(StatusCode.NOTFOUND);
+            if (vni == null) {
+                logger.error("Logical switch " + lsName + " not found");
+                return new Status(StatusCode.NOTFOUND,
+                                  "Logical Switch " + lsName + " not found");
+            }
+            logger.info("Logical switch doesn't exist, creating");
+            Logical_Switch row = new Logical_Switch();
+            row.setName(lsName);
+            row.setTunnel_key(set(vni));
+            lsUuid = new UUID("newLS");
+            ops.add(new InsertOperation(Logical_Switch.NAME.getName(),
+                                        lsUuid.toString(), row));
         }
 
         UUID portUUID = findPhysPort(node, portName);
         if (portUUID == null) {
             logger.error("Physical port " + portName     + " not found");
-            return new Status(StatusCode.NOTFOUND);
+            return new Status(StatusCode.NOTFOUND,
+                              "Physical port " + portName + " not found");
         }
 
         OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
         vlanToLs.put(Integer.parseInt(vlan), lsUuid);
         Mutation m = new Mutation("vlan_bindings", Mutator.INSERT, vlanToLs);
         Condition where = new Condition("_uuid", Function.EQUALS, portUUID);
-        Operation mutReq = new MutateOperation(Physical_Port.NAME.getName(),
-                                               where, m);
 
-        TransactBuilder tr = makeTransaction(mutReq);
+        ops.add(new MutateOperation(Physical_Port.NAME.getName(),
+                                    where, m));
+
+        TransactBuilder tr = makeTransaction(ops);
         try {
-            OperationResult opRes = getConnection(node)
-                                    .getRpc().transact(tr).get().get(0);
-            if (opRes.getError() != null) {
-                logger.error("Error binding vlan " + opRes.getError() +
-                             ", " + opRes.getDetails());
-                return new Status(StatusCode.INTERNALERROR);
+            List<OperationResult> opRes = getConnection(node)
+                                          .getRpc().transact(tr).get();
+
+            Iterator<OperationResult> itRes = opRes.iterator();
+            if (opRes.size() == 1) {
+                OperationResult addLsRes = itRes.next();
+                if (addLsRes.getError() != null) {
+                    String msg = "Error creating logical switch: " +
+                                 addLsRes.getError() + ", " +
+                                 addLsRes.getDetails();
+                    logger.error(msg);
+                    return new Status(StatusCode.INTERNALERROR, msg);
+                }
+            }
+
+            OperationResult bindRes = itRes.next();
+            if (bindRes.getError() != null) {
+                String msg = "Error binding vlan " + bindRes.getError() +
+                             ", " + bindRes.getDetails();
+                logger.error(msg);
+                return new Status(StatusCode.INTERNALERROR, msg);
+
             }
         } catch (Exception e) {
             logger.error("Can't add vlan binding to port", e);
-            return new Status(StatusCode.INTERNALERROR);
+            return new Status(StatusCode.INTERNALERROR,
+                              "Can't add vlan binding to port");
         }
 
         Status st = new Status(StatusCode.SUCCESS);
