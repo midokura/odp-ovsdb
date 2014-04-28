@@ -102,7 +102,7 @@ public class ConfigurationService extends ConfigurationServiceBase
      */
     @Override
     public Status createBridgeDomain(Node node, String bridgeIdentifier,
-            Map<ConfigConstants, Object> configs) {
+                                     Map<ConfigConstants, Object> configs) {
         try{
             if (connectionService == null) {
                 logger.error("Couldn't refer to the ConnectionService");
@@ -187,8 +187,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             if (tr.size() > requests.size()) {
                 OperationResult result = tr.get(tr.size() - 1);
                 logger.error("Error creating Bridge : {}\n Error : {}\n Details : {}", bridgeIdentifier,
-                                                                                       result.getError(),
-                                                                                       result.getDetails());
+                             result.getError(),
+                             result.getDetails());
                 status = new Status(StatusCode.BADREQUEST, result.getError() + " : " + result.getDetails());
             }
             if (status.isSuccess()) {
@@ -275,7 +275,7 @@ public class ConfigurationService extends ConfigurationServiceBase
                 }
 
                 InsertOperation addIntfRequest = new InsertOperation(Interface.NAME.getName(),
-                        newInterface, interfaceRow);
+                                                                     newInterface, interfaceRow);
 
                 Port portRow = new Port();
                 portRow.setName(portIdentifier);
@@ -304,8 +304,8 @@ public class ConfigurationService extends ConfigurationServiceBase
                 if (tr.size() > requests.size()) {
                     OperationResult result = tr.get(tr.size()-1);
                     logger.error("Error creating Bridge : {}\n Error : {}\n Details : {}", bridgeIdentifier,
-                            result.getError(),
-                            result.getDetails());
+                                 result.getError(),
+                                 result.getDetails());
                     status = new Status(StatusCode.BADREQUEST, result.getError() + " : " + result.getDetails());
                 }
                 return status;
@@ -379,7 +379,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @Override
     public Status addBridgeDomainConfig(Node node, String bridgeIdentfier,
-            Map<ConfigConstants, Object> configs) {
+                                        Map<ConfigConstants, Object> configs) {
         String mgmt = (String)configs.get(ConfigConstants.MGMT);
         if (mgmt != null) {
             if (setManager(node, mgmt)) return new Status(StatusCode.SUCCESS);
@@ -389,7 +389,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @Override
     public Status addPortConfig(Node node, String bridgeIdentifier, String portIdentifier,
-            Map<ConfigConstants, Object> configs) {
+                                Map<ConfigConstants, Object> configs) {
         // TODO Auto-generated method stub
         return null;
     }
@@ -449,8 +449,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             if (tr.size() > requests.size()) {
                 OperationResult result = tr.get(tr.size()-1);
                 logger.error("Error creating Bridge : {}\n Error : {}\n Details : {}", bridgeIdentifier,
-                        result.getError(),
-                        result.getDetails());
+                             result.getError(),
+                             result.getDetails());
                 status = new Status(StatusCode.BADREQUEST, result.getError() + " : " + result.getDetails());
             }
             return status;
@@ -468,21 +468,21 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     @Override
     public Map<ConfigConstants, Object> getPortConfigs(Node node, String bridgeIdentifier,
-            String portIdentifier) {
+                                                       String portIdentifier) {
         logger.info("getPortConfigs is not implemented yet");
         return null;
     }
 
     @Override
     public Status removeBridgeDomainConfig(Node node, String bridgeIdentifier,
-            Map<ConfigConstants, Object> configs) {
+                                           Map<ConfigConstants, Object> configs) {
         logger.info("RemoveBridgeDomainConfig is not implemented yet");
         return null;
     }
 
     @Override
     public Status removePortConfig(Node node, String bridgeIdentifier, String portIdentifier,
-            Map<ConfigConstants, Object> configs) {
+                                   Map<ConfigConstants, Object> configs) {
         logger.info("RemovePortConfig is not implemented yet");
         return null;
     }
@@ -536,7 +536,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             if (tr.size() > requests.size()) {
                 OperationResult result = tr.get(tr.size() - 1);
                 logger.error("Error deleting Bridge : {}\n Error : {}\n Details : {}",
-                        bridgeIdentifier, result.getError(), result.getDetails());
+                             bridgeIdentifier, result.getError(), result.getDetails());
                 status = new Status(StatusCode.BADREQUEST, result.getError() + " : " + result.getDetails());
             }
             return status;
@@ -1106,7 +1106,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             return _insertTableRow(node,transaction,mirrorInsertIndex,insertErrorMsg,rowName);
 
-            } catch (Exception e) {
+        } catch (Exception e) {
             logger.error("Error in insertMirrorRow(): ",e);
         }
         return new StatusWithUuid(StatusCode.INTERNALERROR);
@@ -1584,7 +1584,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         TransactBuilder tr = makeTransaction(Arrays.asList(mr, ins));
         try {
             List<OperationResult> opsRes = getConnection(node)
-                                          .getRpc().transact(tr).get();
+                .getRpc().transact(tr).get();
             for (OperationResult opRes : opsRes) {
                 if (opRes.getError() != null) {
                     logger.error("ERROR! " + opRes);
@@ -1606,7 +1606,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         String name = ci.nextArgument();
         StatusWithUuid status = vtepAddLogicalSwitch(name, vni);
         ci.println("Done (" + status.getDescription() +
-                   "), uuid: " + status.getUuid());
+                       "), uuid: " + status.getUuid());
     }
 
     public StatusWithUuid vtepAddLogicalSwitch(String name, String vni) {
@@ -1629,21 +1629,25 @@ public class ConfigurationService extends ConfigurationServiceBase
         String vlan = ci.nextArgument();
         String lsName = ci.nextArgument();
         String portName = ci.nextArgument();
-        vtepBindVlan(lsName, portName, vlan, null);
+        vtepBindVlan(lsName, portName, vlan, null, new ArrayList<String>());
     }
 
     /**
      * Will create a new binding using the given logical switch. If this does
-     * not exist and a VNi is provided, it will create a new LS.
+     * not exist and a VNi is provided, it will create a new LS. This will
+     * also include the floodIps in the Mcast and Ucast remote tables associated
+     * to unknown-mac, thus including the remote peers in all floods.
      *
      * @param lsName
      * @param portName
      * @param vlan
      * @param vni vni to use if
+     * @param floodIps include these IPs in Mcast and Ucast remote mac tables
+     *                 for the unknown-dst
      * @return
      */
     public Status vtepBindVlan(String lsName, String portName, String vlan,
-                               Integer vni) {
+                               Integer vni, List<String> floodIps) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
@@ -1657,24 +1661,27 @@ public class ConfigurationService extends ConfigurationServiceBase
         List<Operation> ops = new ArrayList<>();
         if (lsUuid == null) {
             if (vni == null) {
-                logger.error("Logical switch " + lsName + " not found");
+                logger.error("Logical switch " + lsName +
+                                 " not found, no vni provided");
                 return new Status(StatusCode.NOTFOUND,
                                   "Logical Switch " + lsName + " not found");
             }
-            logger.info("Logical switch doesn't exist, creating");
+            logger.info("Logical switch will be added, vni {}", vni);
             Logical_Switch row = new Logical_Switch();
             row.setName(lsName);
             row.setTunnel_key(set(vni));
-            lsUuid = new UUID("newLS");
+            lsUuid = new UUID(lsName);
             ops.add(new InsertOperation(Logical_Switch.NAME.getName(),
-                                        lsUuid.toString(), row));
+                                        lsName, row));
+        } else {
+            logger.info("Logical switch exists, {}", lsUuid);
         }
 
         UUID portUUID = findPhysPort(node, portName);
         if (portUUID == null) {
-            logger.error("Physical port " + portName     + " not found");
-            return new Status(StatusCode.NOTFOUND,
-                              "Physical port " + portName + " not found");
+            String msg = "Physical port " + portName + " not found";
+            logger.error(msg);
+            return new Status(StatusCode.NOTFOUND, msg);
         }
 
         OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
@@ -1685,18 +1692,58 @@ public class ConfigurationService extends ConfigurationServiceBase
         ops.add(new MutateOperation(Physical_Port.NAME.getName(),
                                     where, m));
 
+        for (String ip : floodIps) {
+
+            logger.info("Map unknown-dst to {} in mcast and ucast remote", ip);
+
+            UUID plUuid= findPhysLocator(node, ip);
+            if (plUuid == null) {
+                logger.info("New physical locator needed for " + ip);
+                String newPlName = "new_pl";
+                plUuid = new UUID(newPlName);
+                Physical_Locator pl = new Physical_Locator();
+                pl.setDst_ip(ip);
+                pl.setEncapsulation_type("vxlan_over_ipv4");
+                ops.add(new InsertOperation(Physical_Locator.NAME.getName(),
+                                            newPlName, pl));
+            }
+
+            String newPlsName = "new_pls_name";
+            UUID plsUuid = new UUID(newPlsName);
+            Physical_Locator_Set pls = new Physical_Locator_Set();
+            pls.setLocators(set(plUuid));
+            ops.add(new InsertOperation(Physical_Locator_Set.NAME.getName(),
+                                        newPlsName, pls));
+
+            Mcast_Macs_Remote rowMcast = new Mcast_Macs_Remote();
+            rowMcast.setMac("unknown-dst");
+            rowMcast.setLocator_set(set(plsUuid));
+            rowMcast.setLogical_switch(set(lsUuid));
+            ops.add(new InsertOperation(Mcast_Macs_Remote.NAME.getName(),
+                                        "new_mcast_mac", rowMcast));
+
+            Ucast_Macs_Remote rowUcast = new Ucast_Macs_Remote();
+            rowUcast.setMac("unknown-dst");
+            rowUcast.setLocator(set(plUuid));
+            rowUcast.setIpaddr(ip);
+            rowUcast.setLogical_switch(set(lsUuid));
+            ops.add(new InsertOperation(Ucast_Macs_Remote.NAME.getName(),
+                                        "new_ucast_mac", rowUcast));
+        }
+
+        logger.debug("Issuing transaction with ops {}", ops);
         TransactBuilder tr = makeTransaction(ops);
         try {
             List<OperationResult> opRes = getConnection(node)
-                                          .getRpc().transact(tr).get();
+                .getRpc().transact(tr).get();
 
             Iterator<OperationResult> itRes = opRes.iterator();
             if (opRes.size() == 1) {
                 OperationResult addLsRes = itRes.next();
                 if (addLsRes.getError() != null) {
                     String msg = "Error creating logical switch: " +
-                                 addLsRes.getError() + ", " +
-                                 addLsRes.getDetails();
+                        addLsRes.getError() + ", " +
+                        addLsRes.getDetails();
                     logger.error(msg);
                     return new Status(StatusCode.INTERNALERROR, msg);
                 }
@@ -1711,13 +1758,13 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             }
         } catch (Exception e) {
-            logger.error("Can't add vlan binding to port", e);
-            return new Status(StatusCode.INTERNALERROR,
-                              "Can't add vlan binding to port");
+            String msg = "Cant' add vlan binding to port";
+            logger.error(msg, e);
+            return new Status(StatusCode.INTERNALERROR, msg);
         }
 
         Status st = new Status(StatusCode.SUCCESS);
-        logger.info("Result: " + st.getCode());
+        logger.info("Bind vlan result" + st.getCode());
         return st;
     }
 
@@ -1734,7 +1781,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     public StatusWithUuid vtepAddUcastRemote(String ls, String mac, String vtepIp,
-                                     String macIp) {
+                                             String macIp) {
 
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
@@ -1773,8 +1820,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         int insertIdx = transaction.getRequests().indexOf(op);
         transaction.addOperation(op);
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
-                        Ucast_Macs_Remote.NAME.getName(), "new_ucast_mac");
-        logger.info("Result: " + st.getCode());
+                                            Ucast_Macs_Remote.NAME.getName(), "new_ucast_mac");
+        logger.info("Add ucast mac remote result: " + st.getCode());
         return st;
     }
 
@@ -1823,18 +1870,28 @@ public class ConfigurationService extends ConfigurationServiceBase
         transaction.addOperation(new InsertOperation(
             Physical_Locator_Set.NAME.getName(), newPlsName, pls));
 
-        Mcast_Macs_Remote row = new Mcast_Macs_Remote();
-        row.setMac(mac);
-        row.setLocator_set(set(plsUuid));
-        row.setLogical_switch(set(lsUuid));
-        Operation op = new InsertOperation(Mcast_Macs_Remote.NAME.getName(),
-                                           "new_mcast_mac", row);
-        int insertIdx = transaction.getRequests().indexOf(op);
-        transaction.addOperation(op);
+        Mcast_Macs_Remote rowMcast = new Mcast_Macs_Remote();
+        rowMcast.setMac(mac);
+        rowMcast.setLocator_set(set(plsUuid));
+        rowMcast.setLogical_switch(set(lsUuid));
+        Operation opMcast = new InsertOperation(Mcast_Macs_Remote.NAME.getName(),
+                                                "new_mcast_mac", rowMcast);
+
+        Ucast_Macs_Remote rowUcast = new Ucast_Macs_Remote();
+        rowUcast.setMac(mac);
+        rowUcast.setLocator(set(plUuid));
+        rowUcast.setIpaddr(ip);
+        rowUcast.setLogical_switch(set(lsUuid));
+        Operation opUcast = new InsertOperation(Ucast_Macs_Remote.NAME.getName(),
+                                                "new_ucast_mac", rowUcast);
+        transaction.addOperation(opUcast);
+        transaction.addOperation(opMcast);
+
+        int insertIdx = transaction.getRequests().indexOf(opMcast);
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
                                             Mcast_Macs_Remote.NAME.getName(),
                                             "new_mcast_mac");
-        logger.info("Result: " + st.getCode());
+        logger.info("Add mcast remote result: " + st.getCode());
         return st;
     }
 
@@ -2049,7 +2106,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
         if (swTable == null || swTable.get(switchUuid) == null) {
             return new StatusWithUuid(StatusCode.NOTFOUND,
-                              "No instance in the "+pSwitchTableName+ " table");
+                                      "No instance in the "+pSwitchTableName+ " table");
         }
 
         String newPort = "new_phys_port";
