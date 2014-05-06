@@ -20,8 +20,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.osgi.framework.console.CommandInterpreter;
 import org.opendaylight.controller.sal.core.Node;
 import org.opendaylight.controller.sal.core.NodeConnector;
@@ -32,6 +34,7 @@ import org.opendaylight.controller.sal.utils.StatusCode;
 import org.opendaylight.ovsdb.lib.database.OVSInstance;
 import org.opendaylight.ovsdb.lib.database.OvsdbType;
 import org.opendaylight.ovsdb.lib.message.TransactBuilder;
+import org.opendaylight.ovsdb.lib.message.operations.DeleteOperation;
 import org.opendaylight.ovsdb.lib.message.operations.InsertOperation;
 import org.opendaylight.ovsdb.lib.message.operations.MutateOperation;
 import org.opendaylight.ovsdb.lib.message.operations.Operation;
@@ -1577,7 +1580,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
         Physical_Port row = new Physical_Port();
         row.setName(portName);
-        row.setVlan_bindings(new OvsDBMap<Integer, UUID>());
+        row.setVlan_bindings(new OvsDBMap<BigInteger, UUID>());
         InsertOperation ins = new InsertOperation(Physical_Port.NAME.getName(),
                                                   "new_ps_port", row);
 
@@ -1768,6 +1771,195 @@ public class ConfigurationService extends ConfigurationServiceBase
         return st;
     }
 
+    /**
+     * Deletes a binding between port and vlan on a given physical switch.
+     *
+     * @param psName physical switch name
+     * @param portName
+     * @param vlan
+     * @return
+     */
+    public Status vtepDelBinding(String psName, String portName, int vlan) {
+
+        logger.info("Deleting binding on switch {}, port {}, vlan {}",
+                    psName, portName, vlan);
+
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
+        }
+
+        UUID psId = findPhysicalSwitch(node, psName);
+        UUID portId = findPhysPort(node, portName);
+
+        String sError = null;
+        if (psId == null) {
+            sError = "Could not find physical switch " + psName;
+        } else if (portId == null) {
+            sError = "Could not find physical port " + portName;
+        }
+        if (sError != null) {
+            logger.error(sError);
+            return new Status(StatusCode.BADREQUEST, sError);
+        }
+
+        Condition where = new Condition("_uuid", Function.EQUALS, portId);
+        Mutation m = new Mutation("vlan_bindings", Mutator.DELETE, vlan);
+        TransactBuilder tr = makeTransaction(
+            new MutateOperation(Physical_Port.NAME.getName(), where, m)
+        );
+        Connection cnxn = this.getConnection(node);
+        if (cnxn == null) {
+            return new Status(StatusCode.NOSERVICE,
+                              "Connection to ovsdb-server not available");
+        }
+
+        try {
+            List<OperationResult> trRes = cnxn.getRpc().transact(tr).get();
+            if (trRes.size() > 1) {
+                return new Status(StatusCode.BADREQUEST,
+                              "Unexpected results on vtepDelBinding: " + trRes);
+            }
+            sError = trRes.get(0).getError();
+            if (sError != null && !"".equals(sError.trim())) {
+                logger.error("Failed deleting binding vtepDelBinding" + sError);
+                return new Status(StatusCode.BADREQUEST, sError);
+            }
+            logger.info("Binding deleted successfully");
+            return new Status(StatusCode.SUCCESS);
+        } catch (InterruptedException | ExecutionException e) {
+            String msg = "Error in vtepDelBinding";
+            logger.error(msg, e);
+            return new Status(StatusCode.BADREQUEST, msg);
+        }
+
+    }
+
+    /**
+     * Will remove a logical switch from the VTEP database, along with any
+     * bindings associated to it.
+     *
+     * @param lsName
+     * @return
+     */
+    public Status vtepDelLogicalSwitch(String lsName) {
+
+        logger.debug("Deleting logical switch {}", lsName);
+
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new Status(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
+        }
+
+        UUID lsId = findLogicalSwitch(node, lsName);
+        if (lsId == null) {
+            logger.debug("Logical switch {} not found", lsName);
+            return new Status(StatusCode.NOTFOUND, "Logical switch not found");
+        }
+
+        List<Operation> ops = new ArrayList<>();
+        ops.add(new DeleteOperation(
+                        Ucast_Macs_Remote.NAME.getName(),
+                        new Condition("logical_switch", Function.EQUALS, lsId))
+        );
+        ops.add(new DeleteOperation(
+            Mcast_Macs_Remote.NAME.getName(),
+            new Condition("logical_switch", Function.EQUALS, lsId))
+        );
+
+        // Brace yourself. Now we need to find out all the bindings where this
+        // logical switch participates.
+        List<Pair<UUID, Integer>> portVlanBindings =
+            this.vtepPortVlanBindings(node, lsId);
+
+        logger.debug("Will remove (portId, vlan) bindings: " + portVlanBindings);
+
+        // For each known binding, remove it
+        for(Pair<UUID, Integer> portVlanBinding : portVlanBindings) {
+            UUID portId = portVlanBinding.getLeft();
+            Integer vlan = portVlanBinding.getRight();
+            Condition where = new Condition("_uuid", Function.EQUALS, portId);
+            Mutation m = new Mutation("vlan_bindings", Mutator.DELETE, vlan);
+            ops.add(new MutateOperation(Physical_Port.NAME.getName(), where, m));
+        }
+
+        // And finally, delete the switch
+        ops.add(new DeleteOperation(
+            Logical_Switch.NAME.getName(),
+            new Condition("_uuid", Function.EQUALS, lsId)
+        ));
+
+        Connection cnxn = this.getConnection(node);
+        if (cnxn == null) {
+            return new Status(StatusCode.NOSERVICE,
+                              "Connection to ovsdb-server not available");
+        }
+
+        TransactBuilder tr = new TransactBuilder(getDatabaseName());
+        tr.addOperations(ops);
+
+        try {
+            List<OperationResult> trRes = cnxn.getRpc().transact(tr).get();
+            if (trRes.size() > ops.size()) {
+                return new Status(StatusCode.BADREQUEST,
+                          "Unexpected results on vtepDelLogicalSwitch: " + trRes);
+            }
+
+            int i = 0;
+            for (OperationResult opRes : trRes) {
+                String sError = opRes == null ? null : opRes.getError();
+                if (sError != null && !"".equals(sError.trim())) {
+                    Operation failedOp = ops.get(i);
+                    logger.error("Failed vtepDelLogicalSwitch, op {} {}: {}",
+                                 i, failedOp.getOp(), sError);
+                    return new Status(StatusCode.BADREQUEST, sError);
+                }
+                i++;
+            }
+
+            // Done, at last
+            logger.debug("Logical switch {} successfully deleted", lsName);
+            return new Status(StatusCode.SUCCESS);
+
+        } catch (InterruptedException | ExecutionException e) {
+            String msg = "Error in vtepDelBinding";
+            logger.error(msg, e);
+            return new Status(StatusCode.BADREQUEST, msg);
+        }
+
+    }
+
+    private List<Pair<UUID, Integer>> vtepPortVlanBindings(Node n,
+                                                           UUID lsUUID) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n)
+                                    .get(Physical_Port.NAME.getName());
+        if (tableCache == null) {
+            return null;
+        }
+
+        List<Pair<UUID, Integer>> foundBindings = new ArrayList<>();
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            UUID portId = new UUID(e.getKey());
+            Physical_Port physPort = (Physical_Port)e.getValue();
+            OvsDBMap<BigInteger, UUID> bindings = physPort.getVlan_bindings();
+            for(Map.Entry<BigInteger, UUID> _e : bindings.entrySet()) {
+                if (_e.getValue().equals(lsUUID)) {
+                    foundBindings.add(Pair.of(portId, _e.getKey().intValue()));
+                }
+            }
+        }
+        return foundBindings;
+    }
+
     public void _vtepAddUcastRemote(CommandInterpreter ci) {
 
         ci.println("Adding remote ucast, args: ls mac vtep_ip mac_ip");
@@ -1801,7 +1993,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
         UUID plUuid= findPhysLocator(node, vtepIp);
         if (plUuid == null) {
-            logger.info("New physical locator needed for " + vtepIp);
+            logger.debug("New physical locator needed for " + vtepIp);
             String newPlName = "new_pl";
             plUuid = new UUID(newPlName);
             Physical_Locator pl = new Physical_Locator();
@@ -1821,7 +2013,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         transaction.addOperation(op);
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
                                             Ucast_Macs_Remote.NAME.getName(), "new_ucast_mac");
-        logger.info("Add ucast mac remote result: " + st.getCode());
+        logger.debug("Add ucast mac remote result: " + st.getCode());
         return st;
     }
 
@@ -1853,7 +2045,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
         UUID plUuid= findPhysLocator(node, ip);
         if (plUuid == null) {
-            logger.info("New physical locator needed for " + ip);
+            logger.debug("New physical locator needed for " + ip);
             String newPlName = "new_pl";
             plUuid = new UUID(newPlName);
             Physical_Locator pl = new Physical_Locator();
@@ -1891,7 +2083,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
                                             Mcast_Macs_Remote.NAME.getName(),
                                             "new_mcast_mac");
-        logger.info("Add mcast remote result: " + st.getCode());
+        logger.debug("Add mcast remote result: " + st.getCode());
         return st;
     }
 
@@ -1973,15 +2165,64 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     private UUID findPhysPort(Node n, String portName) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n)
+                                    .get(Physical_Port.NAME.getName());
+        if (tableCache == null) {
+            return null;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Physical_Port physPort = (Physical_Port)e.getValue();
+            if (physPort.getName().equals(portName)) {
+                return new UUID(e.getKey());
+            }
+        }
+        return null;
+    }
+
+    public Logical_Switch vtepGetLogicalSwitch(Node n, String lsName) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n)
+                                    .get(Logical_Switch.NAME.getName());
+        if (tableCache == null) {
+            return null;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Logical_Switch logicalSwitch = (Logical_Switch)e.getValue();
+            if (logicalSwitch.getName().equals(lsName)) {
+                return logicalSwitch;
+            }
+        }
+        return null;
+    }
+
+    public Physical_Switch vtepGetPhysicalSwitch(Node n, String psName) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n)
+                                    .get(Physical_Switch.NAME.getName());
+        if (tableCache == null) {
+            return null;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Physical_Switch physSwitch = (Physical_Switch)e.getValue();
+            if (physSwitch.getName().equals(psName)) {
+                return physSwitch;
+            }
+        }
+        return null;
+    }
+
+    public Physical_Port vtepGetPhysicalPort(Node n, String portName) {
         Map<String, Table<?>> portCache =
-            inventoryServiceInternal.getCache(n).get("Physical_Port");
+            inventoryServiceInternal.getCache(n)
+                                    .get(Physical_Port.NAME.getName());
         if (portCache == null) {
             return null;
         }
         for (Map.Entry<String, Table<?>> e : portCache.entrySet()) {
             Physical_Port physPort = (Physical_Port)e.getValue();
             if (physPort.getName().equals(portName)) {
-                return new UUID(e.getKey());
+                return physPort;
             }
         }
         return null;
@@ -2049,7 +2290,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
         try {
             List<OperationResult> opRes = getConnection(node).getRpc().transact(tr).get();
-            logger.info("RESULT: {}", opRes);
+            logger.debug("RESULT: {}", opRes);
             for (OperationResult r : opRes) {
                 for (Object row : r.getRows()) {
                     ci.println("--> " + row);

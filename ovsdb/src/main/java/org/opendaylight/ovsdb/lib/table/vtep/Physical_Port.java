@@ -1,5 +1,7 @@
 package org.opendaylight.ovsdb.lib.table.vtep;
 
+import java.math.BigInteger;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.opendaylight.ovsdb.lib.notation.OvsDBMap;
 import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
@@ -22,8 +24,8 @@ public class Physical_Port extends Table<Physical_Port> {
     private String description;
     private String name;
     private OvsDBSet<String> port_fault_status;
-    private OvsDBMap<Integer, UUID> vlan_bindings;
-    private OvsDBMap<Integer, UUID> vlan_stats;
+    private OvsDBMap<BigInteger, UUID> vlan_bindings;
+    private OvsDBMap<BigInteger, UUID> vlan_stats;
 
     @Override
     @JsonIgnore
@@ -54,15 +56,15 @@ public class Physical_Port extends Table<Physical_Port> {
         this.port_fault_status = port_fault_status;
     }
 
-    public OvsDBMap<Integer, UUID> getVlan_bindings() { return vlan_bindings; }
+    public OvsDBMap<BigInteger, UUID> getVlan_bindings() { return vlan_bindings; }
 
-    public void setVlan_bindings(OvsDBMap<Integer, UUID> bindings) {
+    public void setVlan_bindings(OvsDBMap<BigInteger, UUID> bindings) {
         this.vlan_bindings = bindings;
     }
 
-    public OvsDBMap<Integer, UUID> getVlan_stats() { return vlan_stats; }
+    public OvsDBMap<BigInteger, UUID> getVlan_stats() { return vlan_stats; }
 
-    public void setVlan_stats(OvsDBMap<Integer, UUID> vlan_stats) {
+    public void setVlan_stats(OvsDBMap<BigInteger, UUID> vlan_stats) {
         this.vlan_stats = vlan_stats;
     }
 
