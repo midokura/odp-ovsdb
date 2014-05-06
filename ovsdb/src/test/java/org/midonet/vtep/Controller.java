@@ -3,6 +3,7 @@
  */
 package org.midonet.vtep;
 
+import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Map;
@@ -119,6 +120,9 @@ class Controller {
             log.info("> " + e.getValue());
             log.info("  uuid: " + e.getKey());
         }
+
+        //c.cfgSrv.vtepAddLogicalSwitch("testLs", 2323);
+        c.cfgSrv.vtepBindVlan("testLs1", "in1", 2323, 3222, new ArrayList<String>());
 
         // INVOKE
         // c.cfgSrv.vtepDelLogicalSwitch("midonet-1d22f1be-93ba-42ae-8b3c-ed8b604cc643");

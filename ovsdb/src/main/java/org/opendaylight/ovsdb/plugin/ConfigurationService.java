@@ -1607,12 +1607,13 @@ public class ConfigurationService extends ConfigurationServiceBase
         ci.println("Let's add a logical switch");
         String vni = ci.nextArgument();
         String name = ci.nextArgument();
-        StatusWithUuid status = vtepAddLogicalSwitch(name, vni);
+        StatusWithUuid status = vtepAddLogicalSwitch(name,
+                                                     Integer.parseInt(vni));
         ci.println("Done (" + status.getDescription() +
                        "), uuid: " + status.getUuid());
     }
 
-    public StatusWithUuid vtepAddLogicalSwitch(String name, String vni) {
+    public StatusWithUuid vtepAddLogicalSwitch(String name, int vni) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
@@ -1623,7 +1624,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
         Logical_Switch row = new Logical_Switch();
         row.setName(name);
-        row.setTunnel_key(set(Integer.parseInt(vni)));
+        row.setTunnel_key(set(BigInteger.valueOf(vni)));
         return this.insLogicalSwitch(node, row);
     }
 
@@ -1632,7 +1633,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         String vlan = ci.nextArgument();
         String lsName = ci.nextArgument();
         String portName = ci.nextArgument();
-        vtepBindVlan(lsName, portName, vlan, null, new ArrayList<String>());
+        vtepBindVlan(lsName, portName, Integer.parseInt(vlan), null,
+                     new ArrayList<String>());
     }
 
     /**
@@ -1649,7 +1651,7 @@ public class ConfigurationService extends ConfigurationServiceBase
      *                 for the unknown-dst
      * @return
      */
-    public Status vtepBindVlan(String lsName, String portName, String vlan,
+    public Status vtepBindVlan(String lsName, String portName, int vlan,
                                Integer vni, List<String> floodIps) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
@@ -1672,7 +1674,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             logger.info("Logical switch will be added, vni {}", vni);
             Logical_Switch row = new Logical_Switch();
             row.setName(lsName);
-            row.setTunnel_key(set(vni));
+            row.setTunnel_key(set(BigInteger.valueOf(vni)));
             lsUuid = new UUID(lsName);
             ops.add(new InsertOperation(Logical_Switch.NAME.getName(),
                                         lsName, row));
@@ -1688,7 +1690,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
 
         OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
-        vlanToLs.put(Integer.parseInt(vlan), lsUuid);
+        vlanToLs.put(vlan, lsUuid);
         Mutation m = new Mutation("vlan_bindings", Mutator.INSERT, vlanToLs);
         Condition where = new Condition("_uuid", Function.EQUALS, portUUID);
 
@@ -1741,7 +1743,7 @@ public class ConfigurationService extends ConfigurationServiceBase
                 .getRpc().transact(tr).get();
 
             Iterator<OperationResult> itRes = opRes.iterator();
-            if (opRes.size() == 1) {
+            if (opRes.size() > 1) { // we don't create LS always
                 OperationResult addLsRes = itRes.next();
                 if (addLsRes.getError() != null) {
                     String msg = "Error creating logical switch: " +
@@ -1767,7 +1769,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
 
         Status st = new Status(StatusCode.SUCCESS);
-        logger.info("Bind vlan result" + st.getCode());
+        logger.info("Bind vlan result: " + st.getCode());
         return st;
     }
 
@@ -2150,7 +2152,10 @@ public class ConfigurationService extends ConfigurationServiceBase
     private UUID findPhysLocator(Node n, String ip) {
 
         Map<String, Table<?>> plCache = inventoryServiceInternal.getCache(n)
-                                                                .get(Physical_Locator.NAME.getName());
+                                                                .get(
+                                                                    Physical_Locator
+                                                                        .NAME
+                                                                        .getName());
         if (plCache == null) {
             return null;
         }
