@@ -9,19 +9,19 @@
  */
 package org.opendaylight.ovsdb.lib.jsonrpc;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.Socket;
+
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import junit.framework.TestCase;
 import org.junit.Test;
 
-import java.io.OutputStream;
-import java.io.IOException;
-import java.net.Socket;
-
 public class TestClient extends TestCase {
 
         String serverurl = "127.0.0.1";
-        int serverport = 8080;
+        int serverport = 8190;
 
         NettyBootStrapper bootstrapper = new NettyBootStrapper();
         JsonRpcDecoder jsonRpcDecoder = new JsonRpcDecoder(100000);
