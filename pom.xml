@@ -5,13 +5,13 @@
     <maven>3.0</maven>
   </prerequisites>
 
-  <parent>
+  <!--parent>
     <groupId>org.opendaylight.ovsdb</groupId>
     <artifactId>commons.ovsdb</artifactId>
     <version>1.0.0-1-MIDO</version>
     <relativePath>commons/parent</relativePath>
-  </parent>
-  <groupId>org.opendaylight.ovsdb</groupId>
+  </parent-->
+  <groupId>org.midonet</groupId>
   <artifactId>ovsdb.project</artifactId>
   <version>0.5.0-1-MIDO</version>
   <packaging>pom</packaging>

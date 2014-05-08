@@ -60,12 +60,12 @@
       <name>opendaylight-release</name>
       <url>http://nexus.opendaylight.org/content/repositories/opendaylight.release/</url>
     </repository>
-    <!-- OpenDayLight Snapshot artifact -->
+    <!-- OpenDayLight Snapshot artifact
     <repository>
       <id>opendaylight-snapshot</id>
       <name>opendaylight-snapshot</name>
       <url>http://nexus.opendaylight.org/content/repositories/opendaylight.snapshot/</url>
-    </repository>
+    </repository> -->
   </repositories>
 
   <pluginRepositories>
@@ -82,10 +82,10 @@
       <name>central2</name>
       <url>http://nexus.opendaylight.org/content/repositories/opendaylight.release/</url>
     </pluginRepository>
-    <pluginRepository>
+    <!--pluginRepository>
       <id>opendaylight-snapshot</id>
       <name>central2</name>
       <url>http://nexus.opendaylight.org/content/repositories/opendaylight.snapshot/</url>
-    </pluginRepository>
+    </pluginRepository -->
   </pluginRepositories>
 </project>
