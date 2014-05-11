@@ -68,6 +68,9 @@ import org.opendaylight.ovsdb.lib.table.internal.Table;
 import org.opendaylight.ovsdb.lib.table.internal.Tables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.Observable;
+import rx.subjects.PublishSubject;
+import rx.subjects.Subject;
 
 
 /**
@@ -95,6 +98,8 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     private InventoryServiceInternal inventoryServiceInternal;
     private Channel serverListenChannel = null;
 
+    private Subject<TableUpdates, TableUpdates> updateSubject;
+
     public InventoryServiceInternal getInventoryServiceInternal() {
         return inventoryServiceInternal;
     }
@@ -121,6 +126,12 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         // Keep the default value if the property is not set
         if (System.getProperty(OVSDB_AUTOCONFIGURECONTROLLER) != null)
             autoConfigureController = Boolean.getBoolean(OVSDB_AUTOCONFIGURECONTROLLER);
+
+        this.updateSubject = PublishSubject.create();
+    }
+
+    public Observable<TableUpdates> observableUpdates() {
+        return this.updateSubject;
     }
 
     /**
@@ -556,7 +567,10 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     @Override
     public void update(Node node, UpdateNotification updateNotification) {
         if (updateNotification == null) return;
+        // This is a sync call
         inventoryServiceInternal.processTableUpdates(node, updateNotification.getUpdate());
+        // Only when changes are safe in the local cache, proceed to publish
+        this.updateSubject.onNext(updateNotification.getUpdate());
     }
 
     @Override
