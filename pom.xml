@@ -23,8 +23,8 @@
   </scm>
   <modules>
     <module>ovsdb</module>
-    <module>northbound/ovsdb</module>
-    <module>neutron</module>
+    <!--module>northbound/ovsdb</module-->
+    <!--module>neutron</module-->
     <module>commons/parent</module>
     <module>distribution/opendaylight</module>
   </modules>
