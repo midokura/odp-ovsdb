@@ -4,6 +4,7 @@ import java.math.BigInteger;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.opendaylight.ovsdb.lib.notation.OvsDBSet;
+import org.opendaylight.ovsdb.lib.notation.UUID;
 import org.opendaylight.ovsdb.lib.table.internal.Table;
 
 public class Logical_Switch extends Table<Logical_Switch> {
@@ -17,6 +18,9 @@ public class Logical_Switch extends Table<Logical_Switch> {
         tunnel_key
     }
 
+    @JsonIgnore
+    private UUID id;
+
     private String description;
     private String name;
     // It's a plain int in the documentation but the emulator has an array
@@ -28,13 +32,17 @@ public class Logical_Switch extends Table<Logical_Switch> {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("Logical_Switch [name=");
+        StringBuilder sb = new StringBuilder("Logical_Switch [id=");
+        sb.append(id).append(", name=");
         sb.append(name).append(", description=");
         sb.append(description).append(", tunnel_key=");
         sb.append(tunnel_key).append("]");
         return sb.toString();
     }
 
+    public UUID getId() { return id; }
+
+    public void setId(UUID id) { this.id = id; }
 
     public String getDescription() { return description; }
 

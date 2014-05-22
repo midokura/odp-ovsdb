@@ -2019,6 +2019,42 @@ public class ConfigurationService extends ConfigurationServiceBase
         return st;
     }
 
+    public Status _vtepDelUcastMacRemote(String ls, String mac) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
+        }
+        UUID lsUuid = findLogicalSwitch(node, ls);
+        if (lsUuid == null) {
+            logger.error("No logical switch named " + ls);
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
+        UUID entryUUID = findUcastMacRemote(node, mac, lsUuid);
+        if (entryUUID == null) {
+            logger.warn("Trying to delete non existing ucast mac entry for" +
+                        "{} on logical switch {}", mac, ls);
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        transaction.addOperation(
+            new DeleteOperation(
+                Ucast_Macs_Remote.NAME.getName(),
+                Arrays.asList(
+                    new Condition("MAC", Function.EQUALS, mac),
+                    new Condition("logical_switch", Function.EQUALS, lsUuid)
+                )
+            ));
+        Status st = _deleteRootTableRow(node, entryUUID.toString(),
+                                        Ucast_Macs_Remote.NAME.getName());
+        logger.debug("Del ucast mac remote result: " + st.getCode());
+        return st;
+    }
+
     public void _vtepAddMcastRemote(CommandInterpreter ci) {
         ci.println("Adding remote ucast, args: ls mac vtep_ip");
         String ls = ci.nextArgument();
@@ -2121,7 +2157,8 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     private UUID findPhysicalSwitch(Node n, String psName) {
         Map<String, Table<?>> psCache =
-            inventoryServiceInternal.getCache(n).get("Physical_Switch");
+            inventoryServiceInternal.getCache(n).get(
+                Physical_Switch.NAME.getName());
         if (psCache == null) {
             return null;
         }
@@ -2136,7 +2173,8 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     private UUID findLogicalSwitch(Node n, String lsName) {
         Map<String, Table<?>> lsCache =
-            inventoryServiceInternal.getCache(n).get("Logical_Switch");
+            inventoryServiceInternal.getCache(n).get(
+                Logical_Switch.NAME.getName());
         if (lsCache == null) {
             return null;
         }
@@ -2149,13 +2187,27 @@ public class ConfigurationService extends ConfigurationServiceBase
         return null;
     }
 
+    private UUID findUcastMacRemote(Node n, String mac, UUID lsId) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n).get(
+                Ucast_Macs_Remote.NAME.getName());
+        if (tableCache == null) {
+            return null;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
+            if (umr.getMac().equalsIgnoreCase(mac) &&
+                umr.getLogical_switch().equals(lsId)) {
+                return new UUID(e.getKey());
+            }
+        }
+        return null;
+    }
+
     private UUID findPhysLocator(Node n, String ip) {
 
         Map<String, Table<?>> plCache = inventoryServiceInternal.getCache(n)
-                                                                .get(
-                                                                    Physical_Locator
-                                                                        .NAME
-                                                                        .getName());
+                            .get(Physical_Locator.NAME.getName());
         if (plCache == null) {
             return null;
         }
@@ -2194,6 +2246,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
             Logical_Switch logicalSwitch = (Logical_Switch)e.getValue();
+            logicalSwitch.setId(new UUID(e.getKey()));
             if (logicalSwitch.getName().equals(lsName)) {
                 return logicalSwitch;
             }
