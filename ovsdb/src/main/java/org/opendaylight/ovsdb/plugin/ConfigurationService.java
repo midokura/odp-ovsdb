@@ -23,6 +23,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import com.google.common.util.concurrent.ListenableFuture;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.eclipse.osgi.framework.console.CommandInterpreter;
 import org.opendaylight.controller.sal.core.Node;
@@ -1638,70 +1639,87 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Will create a new binding using the given logical switch. If this does
-     * not exist and a VNi is provided, it will create a new LS. This will
-     * also include the floodIps in the Mcast and Ucast remote tables associated
-     * to unknown-mac, thus including the remote peers in all floods.
-     *
-     * @param lsName
-     * @param portName
-     * @param vlan
-     * @param vni vni to use if
-     * @param floodIps include these IPs in Mcast and Ucast remote mac tables
-     *                 for the unknown-dst
-     * @return
+     * Adds bindings to an existing logical switch, and sets flooding IPs.
      */
-    public Status vtepBindVlan(String lsName, String portName, int vlan,
-                               Integer vni, List<String> floodIps) {
+    public Status vtepAddBindings(UUID lsUuid,
+                                  List<Pair<String, Integer>> portVlanPairs) {
         this.dbName = "hardware_vtep";
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null && defaultNode == null) {
+        Node n = Node.fromString("OVS|vtep");
+        if (n == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND, "Invalid node");
-        } else if (node == null) {
-            node = defaultNode;
+        } else if (n == null) {
+            n = defaultNode;
         }
 
-        UUID lsUuid = findLogicalSwitch(node, lsName);
-        List<Operation> ops = new ArrayList<>();
-        if (lsUuid == null) {
-            if (vni == null) {
-                logger.error("Logical switch " + lsName +
-                                 " not found, no vni provided");
-                return new Status(StatusCode.NOTFOUND,
-                                  "Logical Switch " + lsName + " not found");
+        List<Operation> ops = makeBindingOperations(n, lsUuid, portVlanPairs);
+
+        logger.debug("Issuing transaction with ops {}", ops);
+        TransactBuilder tr = makeTransaction(ops);
+        Status result = new Status(StatusCode.SUCCESS);
+
+        try {
+            List<OperationResult> opsRes = getConnection(n)
+                                           .getRpc().transact(tr).get();
+
+            for (OperationResult opRes : opsRes) {
+                String sErr = opRes.getError();
+                if (sErr != null && !sErr.trim().equals("")) {
+                    String msg = "Error adding bindings " + opRes;
+                    logger.error(msg);
+                    return new Status(StatusCode.INTERNALERROR, msg);
+                }
             }
-            logger.info("Logical switch will be added, vni {}", vni);
-            Logical_Switch row = new Logical_Switch();
-            row.setName(lsName);
-            row.setTunnel_key(set(BigInteger.valueOf(vni)));
-            lsUuid = new UUID(lsName);
-            ops.add(new InsertOperation(Logical_Switch.NAME.getName(),
-                                        lsName, row));
-        } else {
-            logger.info("Logical switch exists, {}", lsUuid);
+        } catch (Exception e) {
+            logger.error("Failure adding bindings", e);
+            result = new Status(StatusCode.INTERNALERROR);
         }
 
-        UUID portUUID = findPhysPort(node, portName);
-        if (portUUID == null) {
-            String msg = "Physical port " + portName + " not found";
-            logger.error(msg);
-            return new Status(StatusCode.NOTFOUND, msg);
+        logger.info("Add bindings result: " + result.getCode());
+        return result;
+
+    }
+
+    /**
+     * Makes all the OVSDB operations required to add the given bindings to the
+     * logical switch.
+     */
+    private List<Operation> makeBindingOperations(Node node, UUID lsUuid,
+                  List<Pair<String, Integer>> portVlanPairs) {
+
+        List<Operation> ops = new ArrayList<>();
+        for (Pair<String, Integer> p : portVlanPairs) {
+            String portName = p.getKey();
+            Integer vlan = p.getValue();
+            UUID portUUID = findPhysPort(node, portName);
+            if (portUUID == null) {
+                logger.warn("Physical port " + portName + " not found");
+            }
+
+            OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
+            vlanToLs.put(vlan, lsUuid);
+            Mutation m = new Mutation("vlan_bindings", Mutator.INSERT, vlanToLs);
+            Condition where = new Condition("_uuid", Function.EQUALS, portUUID);
+
+            ops.add(
+                new MutateOperation(Physical_Port.NAME.getName(), where, m)
+            );
         }
 
-        OvsDBMap<Integer, UUID> vlanToLs = new OvsDBMap<>();
-        vlanToLs.put(vlan, lsUuid);
-        Mutation m = new Mutation("vlan_bindings", Mutator.INSERT, vlanToLs);
-        Condition where = new Condition("_uuid", Function.EQUALS, portUUID);
+        return ops;
+    }
 
-        ops.add(new MutateOperation(Physical_Port.NAME.getName(),
-                                    where, m));
-
+    /**
+     * Make the operations to set flood IPs on the given logical switch.
+     */
+    private List<Operation> makeFloodIpOperations(Node node, UUID lsUuid,
+                                                  List<String> floodIps) {
+        List<Operation> ops = new ArrayList<>(floodIps.size());
         for (String ip : floodIps) {
 
             logger.info("Map unknown-dst to {} in mcast and ucast remote", ip);
 
-            UUID plUuid= findPhysLocator(node, ip);
+            UUID plUuid = findPhysLocator(node, ip);
             if (plUuid == null) {
                 logger.info("New physical locator needed for " + ip);
                 String newPlName = "new_pl";
@@ -1735,6 +1753,56 @@ public class ConfigurationService extends ConfigurationServiceBase
             ops.add(new InsertOperation(Ucast_Macs_Remote.NAME.getName(),
                                         "new_ucast_mac", rowUcast));
         }
+        return ops;
+    }
+
+
+    /**
+     * Will create a new binding using the given logical switch. If this does
+     * not exist and a VNi is provided, it will create a new LS. This will
+     * also include the floodIps in the Mcast and Ucast remote tables associated
+     * to unknown-mac, thus including the remote peers in all floods.
+     *
+     * @param floodIps include these IPs in Mcast and Ucast remote mac tables
+     *                 for the unknown-dst
+     */
+    public Status vtepBindVlan(String lsName, String portName, int vlan,
+                               Integer vni, List<String> floodIps) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND, "Invalid node");
+        } else if (node == null) {
+            node = defaultNode;
+        }
+
+        boolean creatingLs = false;
+        UUID lsUuid = findLogicalSwitch(node, lsName);
+        List<Operation> ops = new ArrayList<>();
+        if (lsUuid == null) {
+            if (vni == null) {
+                logger.error("Logical switch " + lsName +
+                                 " not found, no vni provided");
+                return new Status(StatusCode.NOTFOUND,
+                                  "Logical Switch " + lsName + " not found");
+            }
+            logger.info("Logical switch will be added, vni {}", vni);
+            Logical_Switch row = new Logical_Switch();
+            row.setName(lsName);
+            row.setTunnel_key(set(BigInteger.valueOf(vni)));
+            lsUuid = new UUID(lsName);
+            ops.add(new InsertOperation(Logical_Switch.NAME.getName(),
+                                        lsName, row));
+            creatingLs = true;
+        } else {
+            logger.info("Logical switch exists, {}", lsUuid);
+        }
+
+        ops.addAll(makeBindingOperations(node, lsUuid,
+                                     Arrays.asList(Pair.of(portName, vlan))));
+
+        ops.addAll(makeFloodIpOperations(node, lsUuid, floodIps));
 
         logger.debug("Issuing transaction with ops {}", ops);
         TransactBuilder tr = makeTransaction(ops);
@@ -1743,7 +1811,7 @@ public class ConfigurationService extends ConfigurationServiceBase
                 .getRpc().transact(tr).get();
 
             Iterator<OperationResult> itRes = opRes.iterator();
-            if (opRes.size() > 1) { // we don't create LS always
+            if (creatingLs) {
                 OperationResult addLsRes = itRes.next();
                 if (addLsRes.getError() != null) {
                     String msg = "Error creating logical switch: " +
@@ -1771,6 +1839,91 @@ public class ConfigurationService extends ConfigurationServiceBase
         Status st = new Status(StatusCode.SUCCESS);
         logger.info("Bind vlan result: " + st.getCode());
         return st;
+    }
+
+    /**
+     * Clears all the port-vlan bindings for a given logical switch.
+     */
+    public Status vtepClearBindings(UUID lsUuid) {
+
+        logger.debug("Clearing bindings for logical switch {}", lsUuid);
+
+        this.dbName = "hardware_vtep";
+        Node n = Node.fromString("OVS|vtep");
+        if (n == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            throw new IllegalStateException("Node not found");
+        } else if (n == null) {
+            n = defaultNode;
+        }
+
+        Map<String, Table<?>> tableCache = inventoryServiceInternal.getCache(n)
+                .get(Physical_Port.NAME.getName());
+        if (tableCache == null || tableCache.isEmpty()) {
+            logger.warn("Trying to delete bindings for logical switch {}, but" +
+                        "port cache is empty");
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        List<Operation> ops = new ArrayList<>();
+
+        // Examine all the physical ports looking for bindings to the given
+        // logical switch
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Physical_Port physPort = (Physical_Port)e.getValue();
+            OvsDBMap<BigInteger, UUID> bindings = physPort.getVlan_bindings();
+
+            // Scan all its bindings looking for our target logical switch
+            List<Mutation> mutations = new ArrayList<>();
+            for(Map.Entry<BigInteger, UUID> _e : bindings.entrySet()) {
+                BigInteger vlan = _e.getKey();
+                if (lsUuid.equals(_e.getValue())) {
+                    mutations.add(
+                        new Mutation("vlan_bindings", Mutator.DELETE, vlan)
+                    );
+                }
+            }
+
+            // Mutate operation for this port row
+            UUID port = new UUID(e.getKey());
+            ops.add(new MutateOperation(
+                Physical_Port.NAME.getName(),
+                Arrays.asList(new Condition("_uuid", Function.EQUALS, port)),
+                mutations)
+            );
+        }
+
+        // At this point we have a list of Operations each containing all the
+        // mutations required to remove all bindings for each vtep
+        TransactBuilder tr = makeTransaction(ops);
+        Connection cnxn = this.getConnection(n);
+        if (cnxn == null) {
+            logger.warn("Connection is not available!");
+            return new Status(StatusCode.NOSERVICE);
+        }
+
+        // There we go.
+        try {
+            List<OperationResult> opsRes = cnxn.getRpc().transact(tr).get();
+            if (opsRes.size() != ops.size()) {
+                return new Status(StatusCode.BADREQUEST,
+                          "Unexpected results clearing bindings: " + opsRes);
+            }
+            for (OperationResult opRes : opsRes) {
+                String sError = opRes.getError();
+                if (sError != null && !"".equals(sError.trim())) {
+                    logger.error("Failed clearing bindings" + sError);
+                    return new Status(StatusCode.BADREQUEST, sError);
+                }
+            }
+            logger.info("Bindings for logical switch {} cleared successfully",
+                        lsUuid);
+            return new Status(StatusCode.SUCCESS);
+        } catch (InterruptedException | ExecutionException e) {
+            String msg = "Error deleting bindings";
+            logger.error(msg, e);
+            return new Status(StatusCode.BADREQUEST, msg);
+        }
     }
 
     /**
@@ -1880,7 +2033,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         // Brace yourself. Now we need to find out all the bindings where this
         // logical switch participates.
         List<Pair<UUID, Integer>> portVlanBindings =
-            this.vtepPortVlanBindings(node, lsId);
+            this.vtepPortVlanBindings(lsId);
 
         logger.debug("Will remove (portId, vlan) bindings: " + portVlanBindings);
 
@@ -1939,13 +2092,27 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     }
 
-    private List<Pair<UUID, Integer>> vtepPortVlanBindings(Node n,
-                                                           UUID lsUUID) {
+    /**
+     * Offers a list of all the Port-Vlan bindings for the given logical switch.
+     */
+    public List<Pair<UUID, Integer>> vtepPortVlanBindings(UUID lsUUID) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            throw new IllegalStateException("Node not found");
+        } else if (node == null) {
+            node = defaultNode;
+        }
+        return this.vtepPortVlanBindings(node, lsUUID);
+    }
+
+    private List<Pair<UUID, Integer>> vtepPortVlanBindings(Node n, UUID lsUUID) {
         Map<String, Table<?>> tableCache =
             inventoryServiceInternal.getCache(n)
                                     .get(Physical_Port.NAME.getName());
         if (tableCache == null) {
-            return null;
+            return new ArrayList<>();
         }
 
         List<Pair<UUID, Integer>> foundBindings = new ArrayList<>();
