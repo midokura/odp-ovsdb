@@ -27,23 +27,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
-import io.netty.bootstrap.Bootstrap;
-import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.AdaptiveRecvByteBufAllocator;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.string.StringEncoder;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.CharsetUtil;
+
 import org.opendaylight.controller.clustering.services.IClusterGlobalServices;
 import org.opendaylight.controller.sal.connection.ConnectionConstants;
 import org.opendaylight.controller.sal.connection.IPluginInConnectionService;
@@ -68,9 +52,28 @@ import org.opendaylight.ovsdb.lib.table.internal.Table;
 import org.opendaylight.ovsdb.lib.table.internal.Tables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.subjects.Subject;
+
+import io.netty.bootstrap.Bootstrap;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.AdaptiveRecvByteBufAllocator;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.CharsetUtil;
 
 
 /**
@@ -98,7 +101,8 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     private InventoryServiceInternal inventoryServiceInternal;
     private Channel serverListenChannel = null;
 
-    private Subject<TableUpdates, TableUpdates> updateSubject;
+    private Subject<TableUpdates, TableUpdates> updateSubject =
+        PublishSubject.create();
 
     public InventoryServiceInternal getInventoryServiceInternal() {
         return inventoryServiceInternal;
@@ -127,7 +131,6 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         if (System.getProperty(OVSDB_AUTOCONFIGURECONTROLLER) != null)
             autoConfigureController = Boolean.getBoolean(OVSDB_AUTOCONFIGURECONTROLLER);
 
-        this.updateSubject = PublishSubject.create();
     }
 
     public Observable<TableUpdates> observableUpdates() {
