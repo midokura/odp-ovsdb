@@ -1998,7 +1998,7 @@ public class ConfigurationService extends ConfigurationServiceBase
      * Will remove a logical switch from the VTEP database, along with any
      * bindings associated to it.
      *
-     * @param lsName
+     * @param lsName the logical switch name
      * @return
      */
     public Status vtepDelLogicalSwitch(String lsName) {
@@ -2021,19 +2021,21 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
 
         List<Operation> ops = new ArrayList<>();
-        ops.add(new DeleteOperation(
-                        Ucast_Macs_Remote.NAME.getName(),
-                        new Condition("logical_switch", Function.EQUALS, lsId))
+
+        // We need to clear all the mac tables, both local and remote mac tables
+        List<String> macTables = Arrays.asList(
+            Ucast_Macs_Local.NAME.getName(), Mcast_Macs_Local.NAME.getName(),
+            Ucast_Macs_Remote.NAME.getName(), Mcast_Macs_Remote.NAME.getName()
         );
-        ops.add(new DeleteOperation(
-            Mcast_Macs_Remote.NAME.getName(),
-            new Condition("logical_switch", Function.EQUALS, lsId))
-        );
+        for(String table : macTables) {
+            ops.add(new DeleteOperation(
+                table, new Condition("logical_switch", Function.EQUALS, lsId))
+            );
+        }
 
         // Brace yourself. Now we need to find out all the bindings where this
         // logical switch participates.
-        List<Pair<UUID, Integer>> portVlanBindings =
-            this.vtepPortVlanBindings(lsId);
+        List<Pair<UUID, Integer>> portVlanBindings = vtepPortVlanBindings(lsId);
 
         logger.debug("Will remove (portId, vlan) bindings: " + portVlanBindings);
 
@@ -2065,7 +2067,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             List<OperationResult> trRes = cnxn.getRpc().transact(tr).get();
             if (trRes.size() > ops.size()) {
                 return new Status(StatusCode.BADREQUEST,
-                          "Unexpected results on vtepDelLogicalSwitch: " + trRes);
+                                  "Unexpected results on vtepDelLogicalSwitch: "
+                                  + trRes);
             }
 
             int i = 0;
