@@ -83,7 +83,8 @@ public  class TableUpdate<T extends Table>  {
         public String toString() {
             return "Row{" +
                     "id='" + id + '\'' +
-                    ", _new=" + _new.toString() +
+                    ", _new=" + ((_new == null)? "": _new.toString()) +
+                    ", old=" + ((old == null)? "": old.toString()) +
                     '}';
         }
 
