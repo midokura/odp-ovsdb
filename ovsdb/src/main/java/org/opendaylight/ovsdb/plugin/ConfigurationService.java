@@ -2396,7 +2396,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
             Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
             if (umr.getMac().equalsIgnoreCase(mac) &&
-                umr.getLogical_switch().equals(lsId)) {
+                umr.getLogical_switch().contains(lsId)) {
                 return new UUID(e.getKey());
             }
         }
@@ -2413,7 +2413,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
             Mcast_Macs_Remote mmr = (Mcast_Macs_Remote)e.getValue();
             if (mmr.getMac().equalsIgnoreCase(mac) &&
-                mmr.getLogical_switch().equals(lsId)) {
+                mmr.getLogical_switch().contains(lsId)) {
                 return new UUID(e.getKey());
             }
         }
