@@ -399,6 +399,56 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
         return new Status(StatusCode.INTERNALERROR);
     }
 
+    Status _deleteRootTableRows(Node node, TransactBuilder transaction,
+                                String tableName) {
+        try {
+
+            // Establish the connection
+            Connection connection = this.getConnection(node);
+            if (connection == null) {
+                return new Status(StatusCode.NOSERVICE,
+                                  "Connection to ovsdb-server not available");
+            }
+
+            Map<String, Table<?>> table =
+                inventoryServiceInternal.getTableCache(node, tableName);
+
+            // This executes the transaction.
+            ListenableFuture<List<OperationResult>> transResponse =
+                connection.getRpc().transact(transaction);
+
+            // Pull the responses
+            List<OperationResult> tr = transResponse.get();
+            List<Operation> requests = transaction.getRequests();
+
+            Status status = new Status(StatusCode.SUCCESS);
+            for (int i = 0; i < tr.size(); i++) {
+                if (i < requests.size()) requests.get(i).setResult(tr.get(i));
+                if (tr.get(i) != null &&
+                    tr.get(i).getError() != null &&
+                    tr.get(i).getError().trim().length() > 0) {
+                    OperationResult result = tr.get(i);
+                    status = new Status(StatusCode.BADREQUEST,
+                                        result.getError() + " : " +
+                                        result.getDetails());
+                }
+            }
+
+            if (tr.size() > requests.size()) {
+                OperationResult result = tr.get(tr.size() - 1);
+                logger.error("Error deleting from: {}\n Error : {}\n " +
+                             "Details : {}",
+                             tableName, result.getError(), result.getDetails());
+                status = new Status(StatusCode.BADREQUEST, result.getError() +
+                                    " : " + result.getDetails());
+            }
+            return status;
+        } catch (Exception e) {
+            logger.error("Error in _deleteRootTableRows",e);
+        }
+        return new Status(StatusCode.INTERNALERROR);
+    }
+
     /*
      * Convenience method, does a single Op transaction, useful in a bunch
      * of operations below.

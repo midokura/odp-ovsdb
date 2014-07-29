@@ -2174,6 +2174,23 @@ public class ConfigurationService extends ConfigurationServiceBase
             transaction.addOperation(new InsertOperation(
                 Physical_Locator.NAME.getName(), newPlName, pl));
         }
+
+        // Check if the entry already exists
+        List<UUID> entryIdList = findUcastMacRemoteListWithLocator(
+            node, mac, lsUuid, macIp, plUuid);
+        if (!entryIdList.isEmpty()) {
+            return new StatusWithUuid(StatusCode.SUCCESS,
+                                      entryIdList.iterator().next());
+        }
+
+        // FIXME: Before adding an entry, we should check that there are
+        // no stale entries with similar information (e.g. same mac going
+        // to different physical locators).
+        // This is tricky because a single entry can contain several
+        // logical switch names and several end point locators; so by now
+        // we assume that everything is all right - cleanup shoul be added
+        // in a new patch.
+
         Ucast_Macs_Remote row = new Ucast_Macs_Remote();
         row.setMac(mac);
         row.setLocator(set(plUuid));
@@ -2189,6 +2206,47 @@ public class ConfigurationService extends ConfigurationServiceBase
         return st;
     }
 
+    /**
+     * Remove UcastMacRemote entries with the given mac and macIp
+     */
+    public Status _vtepDelUcastMacRemote(String ls, String mac, String macIp) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.error("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
+        }
+        UUID lsUuid = findLogicalSwitch(node, ls);
+        if (lsUuid == null) {
+            logger.error("No logical switch named " + ls);
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
+        List<UUID> entryList = findUcastMacRemoteList(node, mac, lsUuid, macIp);
+        if (entryList.isEmpty()) {
+            logger.warn("Trying to delete non existing ucast mac entry for" +
+                            "{} on logical switch {}", mac, ls);
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        for (UUID id: entryList) {
+            transaction.addOperation(
+                new DeleteOperation(Ucast_Macs_Remote.NAME.getName(),
+                                    new Condition("_uuid", Function.EQUALS, id))
+            );
+        }
+        Status st = _deleteRootTableRows(node, transaction,
+                                         Ucast_Macs_Remote.NAME.getName());
+
+        logger.debug("Del ucast mac remote result: " + st.getCode());
+        return st;
+    }
+
+    /**
+     * Remove UcastMacRemote entries with the given mac
+     */
     public Status _vtepDelUcastMacRemote(String ls, String mac) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
@@ -2203,24 +2261,24 @@ public class ConfigurationService extends ConfigurationServiceBase
             logger.error("No logical switch named " + ls);
             return new StatusWithUuid(StatusCode.NOTFOUND);
         }
-        UUID entryUUID = findUcastMacRemote(node, mac, lsUuid);
-        if (entryUUID == null) {
-            logger.warn("Trying to delete non existing ucast MAC entry for " +
-                        "{} on logical switch {}", mac, ls);
+
+        List<UUID> entryList = findUcastMacRemoteList(node, mac, lsUuid);
+        if (entryList.isEmpty()) {
+            logger.warn("Trying to delete non existing ucast mac entry for" +
+                            "{} on logical switch {}", mac, ls);
             return new Status(StatusCode.NOTFOUND);
         }
 
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
-        transaction.addOperation(
-            new DeleteOperation(
-                Ucast_Macs_Remote.NAME.getName(),
-                Arrays.asList(
-                    new Condition("MAC", Function.EQUALS, mac),
-                    new Condition("logical_switch", Function.EQUALS, lsUuid)
-                )
-            ));
-        Status st = _deleteRootTableRow(node, entryUUID.toString(),
-                                        Ucast_Macs_Remote.NAME.getName());
+        for (UUID id: entryList) {
+            transaction.addOperation(
+                new DeleteOperation(Ucast_Macs_Remote.NAME.getName(),
+                                    new Condition("_uuid", Function.EQUALS, id))
+            );
+        }
+        Status st = _deleteRootTableRows(node, transaction,
+                                         Ucast_Macs_Remote.NAME.getName());
+
         logger.debug("Del ucast mac remote result: " + st.getCode());
         return st;
     }
@@ -2386,21 +2444,34 @@ public class ConfigurationService extends ConfigurationServiceBase
         return null;
     }
 
-    private UUID findUcastMacRemote(Node n, String mac, UUID lsId) {
+    /**
+     * Find the row id corresponding to a precise UcastMacRemote entry,
+     * including the physical locator.
+     * Note: returns a list because the vtep table allows several
+     * equivalent entries.
+     * Note: if the macIp parameter is null, then the macIp in the row must
+     * also be null.
+     */
+    private List<UUID> findUcastMacRemoteListWithLocator(
+        Node n, String mac, UUID lsId, String macIp, UUID physLoc) {
         Map<String, Table<?>> tableCache =
             inventoryServiceInternal.getCache(n).get(
                 Ucast_Macs_Remote.NAME.getName());
+        List<UUID> idList = new ArrayList<>();
         if (tableCache == null) {
-            return null;
+            return idList;
         }
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
-            Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
+            Ucast_Macs_Remote umr = (Ucast_Macs_Remote) e.getValue();
             if (umr.getMac().equalsIgnoreCase(mac) &&
+                ((macIp == null && umr.getIpaddr() == null) ||
+                    (macIp != null && macIp.equals(umr.getIpaddr()))) &&
+                umr.getLocator().contains(physLoc) &&
                 umr.getLogical_switch().contains(lsId)) {
-                return new UUID(e.getKey());
+                idList.add(new UUID(e.getKey()));
             }
         }
-        return null;
+        return idList;
     }
 
     private UUID findMcastMacRemote(Node n, String mac, UUID lsId) {
@@ -2418,6 +2489,56 @@ public class ConfigurationService extends ConfigurationServiceBase
             }
         }
         return null;
+    }
+
+    /**
+     * Find all rows with the given mac and macIp in the UcastMacsRemote table
+     * of a particular logical switch, with any physical locator.
+     * Note: if the macIp parameter is null, then the macIp in the row must
+     * also be null.
+     */
+    private List<UUID> findUcastMacRemoteList(Node n, String mac, UUID lsId,
+                                              String macIp) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n).get(
+                Ucast_Macs_Remote.NAME.getName());
+        List<UUID> idList = new ArrayList<>();
+        if (tableCache == null) {
+            return idList;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
+            if (umr.getMac().equalsIgnoreCase(mac) &&
+                ((macIp == null && umr.getIpaddr() == null) ||
+                 (macIp != null && macIp.equals(umr.getIpaddr()))) &&
+                umr.getLogical_switch().contains(lsId)) {
+                idList.add(new UUID(e.getKey()));
+            }
+        }
+        return idList;
+    }
+
+    /**
+     * Find all rows with the given mac in the UcastMacsRemote table of a
+     * particular logical switch.
+     * Note that the values of the macIp in the table rows are ignored.
+     */
+    private List<UUID> findUcastMacRemoteList(Node n, String mac, UUID lsId) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n).get(
+                Ucast_Macs_Remote.NAME.getName());
+        List<UUID> idList = new ArrayList<>();
+        if (tableCache == null) {
+            return idList;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
+            if (umr.getMac().equalsIgnoreCase(mac) &&
+                umr.getLogical_switch().contains(lsId)) {
+                idList.add(new UUID(e.getKey()));
+            }
+        }
+        return idList;
     }
 
     private UUID findPhysLocator(Node n, String ip) {
