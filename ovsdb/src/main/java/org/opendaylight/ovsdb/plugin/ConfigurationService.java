@@ -1263,7 +1263,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _addBridge (CommandInterpreter ci) {
+    public void addBridge (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1287,7 +1287,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _getBridgeDomains (CommandInterpreter ci) {
+    public void getBridgeDomains (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1305,7 +1305,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _deleteBridgeDomain (CommandInterpreter ci) {
+    public void deleteBridgeDomain (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1328,7 +1328,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _addPort (CommandInterpreter ci) {
+    public void addPort (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1381,7 +1381,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _deletePort (CommandInterpreter ci) {
+    public void deletePort (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1412,7 +1412,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _addPortVlan (CommandInterpreter ci) {
+    public void addPortVlan (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1460,7 +1460,7 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     @SuppressWarnings("unused")
-    public void _addTunnel (CommandInterpreter ci) {
+    public void addTunnel (CommandInterpreter ci) {
         this.dbName = "Open_vSwitch";
         String nodeName = ci.nextArgument();
         if (nodeName == null) {
@@ -1531,12 +1531,16 @@ public class ConfigurationService extends ConfigurationServiceBase
         return help.toString();
     }
 
+    /**
+     * VTEP methods.
+     */
 
-    ///// VTEP STUFF
-
-    // vtepconnect <ip> <port>
-    public void _vtepConnect(CommandInterpreter ci) {
-        ci.print("Let's connect to the Hardware VTEP!");
+    /**
+     * Connects to the VTEP.
+     * @param ci The command interpreter.
+     */
+    public void vtepConnect(CommandInterpreter ci) {
+        ci.print("Connecting to the Hardware VTEP.");
         this._connect("vtep", ci);
     }
 
@@ -1546,15 +1550,15 @@ public class ConfigurationService extends ConfigurationServiceBase
     // vtep one. So, the maybe this needs to be refactored and changed so it
     // actually does an ovs-vsctl add-port <phys_br_name> <port_name> and lets
     // the emulator put them in sync.
-    public void _vtepAddPsPort(CommandInterpreter ci) {
-        ci.println("Let's add a physical port");
+    public void vtepAddPsPort(CommandInterpreter ci) {
+        ci.println("Adding a physical port");
 
         String psName = ci.nextArgument();
         String portName = ci.nextArgument();
 
         vtepAddPhysicalSwitchPort(psName, portName);
 
-        ci.println("Done!");
+        ci.println("Adding port completed");
     }
 
     public Status vtepAddPhysicalSwitchPort(String psName, String portName) {
@@ -1604,7 +1608,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
     }
 
-    public void _vtepAddLS(CommandInterpreter ci) {
+    public void vtepAddLS(CommandInterpreter ci) {
         ci.println("Let's add a logical switch");
         String vni = ci.nextArgument();
         String name = ci.nextArgument();
@@ -1629,7 +1633,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         return this.insLogicalSwitch(node, row);
     }
 
-    public void _vtepBindVlan(CommandInterpreter ci) {
+    public void vtepBindVlan(CommandInterpreter ci) {
         ci.println("Let's bind a vlan");
         String vlan = ci.nextArgument();
         String lsName = ci.nextArgument();
@@ -2132,7 +2136,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         return foundBindings;
     }
 
-    public void _vtepAddUcastRemote(CommandInterpreter ci) {
+    public void vtepAddUcastMacRemote(CommandInterpreter ci) {
 
         ci.println("Adding remote ucast, args: ls mac vtep_ip mac_ip");
 
@@ -2141,11 +2145,19 @@ public class ConfigurationService extends ConfigurationServiceBase
         String vtepIp = ci.nextArgument();
         String macIp = ci.nextArgument();
 
-        vtepAddUcastRemote(ls, mac, vtepIp, macIp);
+        vtepAddUcastMacRemote(ls, mac, vtepIp, macIp);
     }
 
-    public StatusWithUuid vtepAddUcastRemote(String ls, String mac, String vtepIp,
-                                             String macIp) {
+    /**
+     * Adds an entry to the unicast remote MAC table.
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @param vtepIp The VTEP IP address.
+     * @param macIp The MAC IP address.
+     * @return The operation status with the entry identifier.
+     */
+    public StatusWithUuid vtepAddUcastMacRemote(
+        String ls, String mac, String vtepIp, String macIp) {
 
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
@@ -2176,7 +2188,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
 
         // Check if the entry already exists
-        List<UUID> entryIdList = findUcastMacRemoteListWithLocator(
+        List<UUID> entryIdList = findAllUcastMacRemoteWithLocator(
             node, mac, lsUuid, macIp, plUuid);
         if (!entryIdList.isEmpty()) {
             return new StatusWithUuid(StatusCode.SUCCESS,
@@ -2200,101 +2212,183 @@ public class ConfigurationService extends ConfigurationServiceBase
                                            "new_ucast_mac", row);
         int insertIdx = transaction.getRequests().indexOf(op);
         transaction.addOperation(op);
-        StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
-                                            Ucast_Macs_Remote.NAME.getName(), "new_ucast_mac");
-        logger.debug("Add ucast mac remote result: " + st.getCode());
+        StatusWithUuid st = _insertTableRow(
+            node, transaction, insertIdx, Ucast_Macs_Remote.NAME.getName(),
+            "new_ucast_mac");
+        logger.debug("Add ucast MAC remote result: " + st.getCode());
         return st;
     }
 
     /**
-     * Remove UcastMacRemote entries with the given mac and macIp
+     * Deletes the first unicast MAC entry for the specified logical switch.
+     * The method returns a NotFound error code if either the logical switch or
+     * the MAC address are not found.
+     *
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @return The operation status code.
      */
-    public Status _vtepDelUcastMacRemote(String ls, String mac, String macIp) {
+    public Status vtepDelFirstUcastMacRemote(String ls, String mac) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
-            logger.error("Invalid node: OVS|vtep");
+            logger.warn("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
         } else if (node == null) {
             node = defaultNode;
         }
         UUID lsUuid = findLogicalSwitch(node, ls);
         if (lsUuid == null) {
-            logger.error("No logical switch named " + ls);
+            logger.warn("No logical switch named " + ls);
             return new StatusWithUuid(StatusCode.NOTFOUND);
         }
-        List<UUID> entryList = findUcastMacRemoteList(node, mac, lsUuid, macIp);
-        if (entryList.isEmpty()) {
-            logger.warn("Trying to delete non existing ucast mac entry for" +
-                            "{} on logical switch {}", mac, ls);
+        UUID entryUUID = findFirstUcastMacRemote(node, mac, lsUuid);
+        if (entryUUID == null) {
+            logger.warn("Trying to delete non existing ucast MAC entry for " +
+                        "{} on logical switch {}", mac, ls);
             return new Status(StatusCode.NOTFOUND);
         }
 
-        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
-        for (UUID id: entryList) {
-            transaction.addOperation(
-                new DeleteOperation(Ucast_Macs_Remote.NAME.getName(),
-                                    new Condition("_uuid", Function.EQUALS, id))
-            );
-        }
-        Status st = _deleteRootTableRows(node, transaction,
-                                         Ucast_Macs_Remote.NAME.getName());
+        Status st = _deleteRootTableRow(node, entryUUID.toString(),
+                                        Ucast_Macs_Remote.NAME.getName());
 
-        logger.debug("Del ucast mac remote result: " + st.getCode());
+        logger.debug("Delete first ucast MAC remote result: " + st.getCode());
         return st;
     }
 
     /**
-     * Remove UcastMacRemote entries with the given mac
+     * Deletes all remote unicast MAC entries for the specified logical switch.
+     * The method returns a NotFound status when there is no logical switch,
+     * there is no unicast MAC table, or there are no entries to delete.
+     *
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @return The operation status code.
      */
-    public Status _vtepDelUcastMacRemote(String ls, String mac) {
+    public Status vtepDelAllUcastMacRemote(String ls, String mac) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
-            logger.error("Invalid node: OVS|vtep");
+            logger.debug("Invalid node: OVS|vtep");
             return new StatusWithUuid(StatusCode.NOTFOUND);
         } else if (node == null) {
             node = defaultNode;
         }
-        UUID lsUuid = findLogicalSwitch(node, ls);
-        if (lsUuid == null) {
-            logger.error("No logical switch named " + ls);
+        UUID lsId = findLogicalSwitch(node, ls);
+        if (lsId == null) {
+            logger.debug("No logical switch named " + ls);
             return new StatusWithUuid(StatusCode.NOTFOUND);
         }
 
-        List<UUID> entryList = findUcastMacRemoteList(node, mac, lsUuid);
-        if (entryList.isEmpty()) {
-            logger.warn("Trying to delete non existing ucast mac entry for" +
-                            "{} on logical switch {}", mac, ls);
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(node).get(
+                Ucast_Macs_Remote.NAME.getName());
+        if (tableCache == null) {
+            logger.debug("No cache table found for ucast MAC entries.");
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        List<UUID> macIds = findAllUcastMacRemote(node, mac, lsId);
+        if (macIds.isEmpty()) {
+            logger.debug("Trying to delete non-existing MAC {} for logical "
+                        + "switch {}", mac, ls);
             return new Status(StatusCode.NOTFOUND);
         }
 
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
-        for (UUID id: entryList) {
+        for (UUID id : macIds) {
             transaction.addOperation(
-                new DeleteOperation(Ucast_Macs_Remote.NAME.getName(),
-                                    new Condition("_uuid", Function.EQUALS, id))
-            );
+                new DeleteOperation(
+                    Ucast_Macs_Remote.NAME.getName(),
+                    new Condition("_uuid", Function.EQUALS, id)));
         }
-        Status st = _deleteRootTableRows(node, transaction,
-                                         Ucast_Macs_Remote.NAME.getName());
 
-        logger.debug("Del ucast mac remote result: " + st.getCode());
-        return st;
+        Status status = _doTableTransaction(
+            node, transaction, Ucast_Macs_Remote.NAME.getName());
+
+        logger.debug("Delete all ucast MAC remote result: " + status.getCode());
+        return status;
     }
 
-    public void _vtepAddMcastRemote(CommandInterpreter ci) {
+    /**
+     * Deletes all remote unicast MAC entries for the specified logical switch.
+     * The entries must match both the MAC and the IP addresses. The method
+     * returns a NotFound status when there is no logical switch, there is no
+     * unicast MAC table, or there are no entries to delete.
+     *
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @param macIp The MAC IP address.
+     * @return The operation status code.
+     */
+    public Status vtepDelAllUcastMacRemote(String ls, String mac, String macIp) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.debug("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
+        }
+        UUID lsId = findLogicalSwitch(node, ls);
+        if (lsId == null) {
+            logger.debug("No logical switch named " + ls);
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
+
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(node).get(
+                Ucast_Macs_Remote.NAME.getName());
+        if (tableCache == null) {
+            logger.debug("No cache table found for ucast MAC entries.");
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        List<UUID> macIds = findAllUcastMacRemote(node, mac, lsId, macIp);
+        if (macIds.isEmpty()) {
+            logger.debug("Trying to delete non-existing MAC {} for logical "
+                         + "switch {} with IP", mac, ls, macIp);
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        TransactBuilder transaction = new TransactBuilder(getDatabaseName());
+        for (UUID id : macIds) {
+            transaction.addOperation(
+                new DeleteOperation(
+                    Ucast_Macs_Remote.NAME.getName(),
+                    new Condition("_uuid", Function.EQUALS, id)));
+        }
+
+        Status status = _doTableTransaction(
+            node, transaction, Ucast_Macs_Remote.NAME.getName());
+
+        logger.debug("Delete all ucast MAC remote result: " + status.getCode());
+        return status;
+    }
+
+    /**
+     * Adds a remote multicast MAC address.
+     * @param ci The command interpreter.
+     */
+    public void vtepAddMcastMacRemote(CommandInterpreter ci) {
         ci.println("Adding remote ucast, args: ls mac vtep_ip");
         String ls = ci.nextArgument();
         String mac = ci.nextArgument();
         String ip = ci.nextArgument();
-        vtepAddMcastRemote(ls, mac, ip);
+        vtepAddMcastMacRemote(ls, mac, ip);
     }
 
-    public StatusWithUuid vtepAddMcastRemote(String ls, String mac, String ip) {
+    /**
+     * Adds a remote multicast MAC address.
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @param ip The IP address.
+     * @return The operation status.
+     */
+    public StatusWithUuid vtepAddMcastMacRemote(
+        String ls, String mac, String ip) {
 
         this.dbName = "hardware_vtep";
-
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
             logger.error("Invalid node: OVS|vtep");
@@ -2346,7 +2440,52 @@ public class ConfigurationService extends ConfigurationServiceBase
         return st;
     }
 
-    public Status _vtepDelMcastMacRemote(String ls, String mac) {
+    /**
+     * Deletes the first multicast MAC entry for the specified logical switch.
+     * The method returns a NotFound error code if either the logical switch or
+     * the MAC address are not found.
+     *
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @return The operation status code.
+     */
+    public Status vtepDelFirstMcastMacRemote(String ls, String mac) {
+        this.dbName = "hardware_vtep";
+        Node node = Node.fromString("OVS|vtep");
+        if (node == null && defaultNode == null) {
+            logger.debug("Invalid node: OVS|vtep");
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        } else if (node == null) {
+            node = defaultNode;
+        }
+        UUID lsUuid = findLogicalSwitch(node, ls);
+        if (lsUuid == null) {
+            logger.debug("No logical switch named " + ls);
+            return new StatusWithUuid(StatusCode.NOTFOUND);
+        }
+        UUID entryUUID = findFirstMcastMacRemote(node, mac, lsUuid);
+        if (entryUUID == null) {
+            logger.debug("Trying to delete non-existing mcast MAC entry for " +
+                         "{} on logical switch {}", mac, ls);
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        Status st = _deleteRootTableRow(node, entryUUID.toString(),
+                                        Mcast_Macs_Remote.NAME.getName());
+        logger.debug("Delete first mcast MAC remote result: " + st.getCode());
+        return st;
+    }
+
+    /**
+     * Deletes all remote multicast MAC entries for the specified logical switch.
+     * The method returns a NotFound status when there is no logical switch,
+     * there is no unicast MAC table, or there are no entries to delete.
+     *
+     * @param ls The logical switch name.
+     * @param mac The MAC address.
+     * @return The operation status code.
+     */
+    public Status vtepDelAllMcastMacRemote(String ls, String mac) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
@@ -2355,52 +2494,61 @@ public class ConfigurationService extends ConfigurationServiceBase
         } else if (node == null) {
             node = defaultNode;
         }
-        UUID lsUuid = findLogicalSwitch(node, ls);
-        if (lsUuid == null) {
+        UUID lsId = findLogicalSwitch(node, ls);
+        if (lsId == null) {
             logger.error("No logical switch named " + ls);
             return new StatusWithUuid(StatusCode.NOTFOUND);
         }
-        UUID entryUUID = findMcastMacRemote(node, mac, lsUuid);
-        if (entryUUID == null) {
-            logger.warn("Trying to delete non-existing mcast MAC entry for " +
-                        "{} on logical switch {}", mac, ls);
+
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(node).get(
+                Mcast_Macs_Remote.NAME.getName());
+        if (tableCache == null) {
+            logger.warn("No cache table found for mcast MAC entries.");
+            return new Status(StatusCode.NOTFOUND);
+        }
+
+        List<UUID> macIds = findAllMcastMacRemote(node, mac, lsId);
+        if (macIds.isEmpty()) {
+            logger.debug("Trying to delete non-existing MAC {} for logical "
+                         + "switch {}", mac, ls);
             return new Status(StatusCode.NOTFOUND);
         }
 
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
-        transaction.addOperation(
-            new DeleteOperation(
-                Mcast_Macs_Remote.NAME.getName(),
-                Arrays.asList(
-                    new Condition("MAC", Function.EQUALS, mac),
-                    new Condition("logical_switch", Function.EQUALS, lsUuid)
-                )
-            ));
-        Status st = _deleteRootTableRow(node, entryUUID.toString(),
-                                        Mcast_Macs_Remote.NAME.getName());
-        logger.debug("Del mcast MAC remote result: " + st.getCode());
-        return st;
+        for (UUID id : macIds) {
+            transaction.addOperation(
+                new DeleteOperation(
+                    Mcast_Macs_Remote.NAME.getName(),
+                    new Condition("_uuid", Function.EQUALS, id)));
+        }
+
+        Status status = _doTableTransaction(
+            node, transaction, Mcast_Macs_Remote.NAME.getName());
+
+        logger.debug("Delete all mcast MAC remote result: " + status.getCode());
+        return status;
     }
 
-    public void _vtepListPs(CommandInterpreter ci) {
+    public void vtepListPs(CommandInterpreter ci) {
         listToCI(ci, Physical_Switch.NAME.getName());
     }
 
-    public void _vtepListLs(CommandInterpreter ci) {
+    public void vtepListLs(CommandInterpreter ci) {
         listToCI(ci, Logical_Switch.NAME.getName());
     }
 
-    public void _vtepListPsPorts(CommandInterpreter ci) {
+    public void vtepListPsPorts(CommandInterpreter ci) {
         listToCI(ci, Physical_Port.NAME.getName());
     }
 
-    public void _vtepListMcastMacs(CommandInterpreter ci) {
+    public void vtepListMcastMacs(CommandInterpreter ci) {
         listToCI(ci, Mcast_Macs_Local.NAME.getName());
         ci.println("------");
         listToCI(ci, Mcast_Macs_Remote.NAME.getName());
     }
 
-    public void _vtepListUcastMacs(CommandInterpreter ci) {
+    public void vtepListUcastMacs(CommandInterpreter ci) {
         listToCI(ci, Ucast_Macs_Local.NAME.getName());
         ci.println("------");
         listToCI(ci, Ucast_Macs_Remote.NAME.getName());
@@ -2445,36 +2593,39 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Find the row id corresponding to a precise UcastMacRemote entry,
-     * including the physical locator.
-     * Note: returns a list because the vtep table allows several
-     * equivalent entries.
-     * Note: if the macIp parameter is null, then the macIp in the row must
-     * also be null.
+     * Finds the first unicast remote MAC entry. The method returns null if
+     * there is no entry that matches the MAC and the logical switch entry.
+     *
+     * @param n The DB node.
+     * @param mac The MAC address.
+     * @param lsId The logical switch DB entry identifier.
+     * @return The MAC DB entry identifier.
      */
-    private List<UUID> findUcastMacRemoteListWithLocator(
-        Node n, String mac, UUID lsId, String macIp, UUID physLoc) {
+    private UUID findFirstUcastMacRemote(Node n, String mac, UUID lsId) {
         Map<String, Table<?>> tableCache =
             inventoryServiceInternal.getCache(n).get(
                 Ucast_Macs_Remote.NAME.getName());
-        List<UUID> idList = new ArrayList<>();
         if (tableCache == null) {
-            return idList;
+            return null;
         }
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
             Ucast_Macs_Remote umr = (Ucast_Macs_Remote) e.getValue();
             if (umr.getMac().equalsIgnoreCase(mac) &&
-                ((macIp == null && umr.getIpaddr() == null) ||
-                    (macIp != null && macIp.equals(umr.getIpaddr()))) &&
-                umr.getLocator().contains(physLoc) &&
                 umr.getLogical_switch().contains(lsId)) {
-                idList.add(new UUID(e.getKey()));
+                return new UUID(e.getKey());
             }
         }
-        return idList;
+        return null;
     }
 
-    private UUID findMcastMacRemote(Node n, String mac, UUID lsId) {
+    /**
+     * Finds the first multicast remote MAC entry.
+     * @param n The DB node.
+     * @param mac The MAC address.
+     * @param lsId The logical switch DB entry identifier.
+     * @return The MAC DB entry idenfier.
+     */
+    private UUID findFirstMcastMacRemote(Node n, String mac, UUID lsId) {
         Map<String, Table<?>> tableCache =
             inventoryServiceInternal.getCache(n).get(
                 Mcast_Macs_Remote.NAME.getName());
@@ -2492,13 +2643,45 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Find all rows with the given mac and macIp in the UcastMacsRemote table
-     * of a particular logical switch, with any physical locator.
-     * Note: if the macIp parameter is null, then the macIp in the row must
-     * also be null.
+     * Finds all unicast remote MAC addresses for the specified logical switch,
+     * that have the given MAC address.
+     *
+     * @param n The DB node.
+     * @param mac The MAC address.
+     * @param lsId The logical switch DB entry identifier.
+     * @return The list of MAC entry identifiers.
      */
-    private List<UUID> findUcastMacRemoteList(Node n, String mac, UUID lsId,
-                                              String macIp) {
+    private List<UUID> findAllUcastMacRemote(Node n, String mac, UUID lsId) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n).get(
+                Ucast_Macs_Remote.NAME.getName());
+        List<UUID> idList = new ArrayList<>();
+        if (tableCache == null) {
+            return idList;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
+            if (umr.getMac().equalsIgnoreCase(mac) &&
+                umr.getLogical_switch().contains(lsId)) {
+                idList.add(new UUID(e.getKey()));
+            }
+        }
+        return idList;
+    }
+
+    /**
+     * Finds all unicast remote MAC addresses for the specified logical switch,
+     * that have the given MAC IP address. If the MAC  IP address is <b>null</b>
+     * then the MAC IP in the row must also be null.
+     *
+     * @param n The DB node.
+     * @param mac The MAC address.
+     * @param lsId The logical switch DB entry identifier.
+     * @param macIp The MAC IP address.
+     * @return The list of MAC entry identifiers.
+     */
+    private List<UUID> findAllUcastMacRemote(
+        Node n, String mac, UUID lsId, String macIp) {
         Map<String, Table<?>> tableCache =
             inventoryServiceInternal.getCache(n).get(
                 Ucast_Macs_Remote.NAME.getName());
@@ -2519,11 +2702,19 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Find all rows with the given mac in the UcastMacsRemote table of a
-     * particular logical switch.
-     * Note that the values of the macIp in the table rows are ignored.
+     * Finds all unicast remote MAC entries for the specified logical switch,
+     * that have the given MAC IP address, and physical locator. If the MAC
+     * IP address is <b>null</b> then the MAC IP in the row must also be null.
+     *
+     * @param n The DB node.
+     * @param mac The MAC address.
+     * @param lsId The logical switch DB entry identifier.
+     * @param macIp The MAC IP address.
+     * @param physLoc The physical locator.
+     * @return The list of MAC entry identifiers.
      */
-    private List<UUID> findUcastMacRemoteList(Node n, String mac, UUID lsId) {
+    private List<UUID> findAllUcastMacRemoteWithLocator(
+        Node n, String mac, UUID lsId, String macIp, UUID physLoc) {
         Map<String, Table<?>> tableCache =
             inventoryServiceInternal.getCache(n).get(
                 Ucast_Macs_Remote.NAME.getName());
@@ -2532,9 +2723,39 @@ public class ConfigurationService extends ConfigurationServiceBase
             return idList;
         }
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
-            Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
+            Ucast_Macs_Remote umr = (Ucast_Macs_Remote) e.getValue();
             if (umr.getMac().equalsIgnoreCase(mac) &&
+                ((macIp == null && umr.getIpaddr() == null) ||
+                 (macIp != null && macIp.equals(umr.getIpaddr()))) &&
+                umr.getLocator().contains(physLoc) &&
                 umr.getLogical_switch().contains(lsId)) {
+                idList.add(new UUID(e.getKey()));
+            }
+        }
+        return idList;
+    }
+
+    /**
+     * Finds all multicast remote MAC addresses for the specified logical
+     * switch, that have the given MAC address.
+     *
+     * @param n The DB node.
+     * @param mac The MAC address.
+     * @param lsId The logical switch DB entry identifier.
+     * @return The list of MAC entry identifiers.
+     */
+    private List<UUID> findAllMcastMacRemote(Node n, String mac, UUID lsId) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n).get(
+                Mcast_Macs_Remote.NAME.getName());
+        List<UUID> idList = new ArrayList<>();
+        if (tableCache == null) {
+            return idList;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Mcast_Macs_Remote mmr = (Mcast_Macs_Remote)e.getValue();
+            if (mmr.getMac().equalsIgnoreCase(mac) &&
+                mmr.getLogical_switch().contains(lsId)) {
                 idList.add(new UUID(e.getKey()));
             }
         }
@@ -2671,10 +2892,12 @@ public class ConfigurationService extends ConfigurationServiceBase
         return columns;
     }
 
-    private void queryTable(CommandInterpreter ci, Node node, String tableName, Condition where, List<String> columns) {
+    private void queryTable(CommandInterpreter ci, Node node, String tableName,
+                            Condition where, List<String> columns) {
 
         this.dbName = "hardware_vtep";
-        Map<String, Table<?>> t = inventoryServiceInternal.getTableCache(node, tableName);
+        Map<String, Table<?>> t = inventoryServiceInternal.getTableCache(
+            node, tableName);
         if (t == null) {
             ci.println("Table cache not found");
             return;
@@ -2684,7 +2907,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         TransactBuilder tr = makeTransaction(opGet);
 
         try {
-            List<OperationResult> opRes = getConnection(node).getRpc().transact(tr).get();
+            List<OperationResult> opRes = getConnection(node).getRpc()
+                .transact(tr).get();
             logger.debug("RESULT: {}", opRes);
             for (OperationResult r : opRes) {
                 for (Object row : r.getRows()) {
@@ -2741,8 +2965,9 @@ public class ConfigurationService extends ConfigurationServiceBase
             inventoryServiceInternal.getTableCache(node, pSwitchTableName);
 
         if (swTable == null || swTable.get(switchUuid) == null) {
-            return new StatusWithUuid(StatusCode.NOTFOUND,
-                                      "No instance in the "+pSwitchTableName+ " table");
+            return new StatusWithUuid(
+                StatusCode.NOTFOUND,
+                "No instance in the " + pSwitchTableName + " table");
         }
 
         String newPort = "new_phys_port";
@@ -2777,6 +3002,5 @@ public class ConfigurationService extends ConfigurationServiceBase
         return doInsertTransact(node, Logical_Switch.NAME.getName(),
                                 "new_log_switch", row);
     }
-
 }
 

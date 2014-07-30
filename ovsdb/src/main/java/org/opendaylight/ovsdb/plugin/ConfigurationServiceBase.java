@@ -399,8 +399,8 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
         return new Status(StatusCode.INTERNALERROR);
     }
 
-    Status _deleteRootTableRows(Node node, TransactBuilder transaction,
-                                String tableName) {
+    Status _doTableTransaction(Node node, TransactBuilder transaction,
+                                 String tableName) {
         try {
 
             // Establish the connection
@@ -436,7 +436,7 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
 
             if (tr.size() > requests.size()) {
                 OperationResult result = tr.get(tr.size() - 1);
-                logger.error("Error deleting from: {}\n Error : {}\n " +
+                logger.error("Error executing transaction from: {}\n Error : {}\n " +
                              "Details : {}",
                              tableName, result.getError(), result.getDetails());
                 status = new Status(StatusCode.BADREQUEST, result.getError() +
@@ -444,7 +444,7 @@ public abstract class ConfigurationServiceBase implements OVSDBConfigService,
             }
             return status;
         } catch (Exception e) {
-            logger.error("Error in _deleteRootTableRows",e);
+            logger.error("Error in _doTableTransaction",e);
         }
         return new Status(StatusCode.INTERNALERROR);
     }
