@@ -2220,43 +2220,6 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Deletes the first unicast MAC entry for the specified logical switch.
-     * The method returns a NotFound error code if either the logical switch or
-     * the MAC address are not found.
-     *
-     * @param ls The logical switch name.
-     * @param mac The MAC address.
-     * @return The operation status code.
-     */
-    public Status vtepDelFirstUcastMacRemote(String ls, String mac) {
-        this.dbName = "hardware_vtep";
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null && defaultNode == null) {
-            logger.warn("Invalid node: OVS|vtep");
-            return new StatusWithUuid(StatusCode.NOTFOUND);
-        } else if (node == null) {
-            node = defaultNode;
-        }
-        UUID lsUuid = findLogicalSwitch(node, ls);
-        if (lsUuid == null) {
-            logger.warn("No logical switch named " + ls);
-            return new StatusWithUuid(StatusCode.NOTFOUND);
-        }
-        UUID entryUUID = findFirstUcastMacRemote(node, mac, lsUuid);
-        if (entryUUID == null) {
-            logger.warn("Trying to delete non existing ucast MAC entry for " +
-                        "{} on logical switch {}", mac, ls);
-            return new Status(StatusCode.NOTFOUND);
-        }
-
-        Status st = _deleteRootTableRow(node, entryUUID.toString(),
-                                        Ucast_Macs_Remote.NAME.getName());
-
-        logger.debug("Delete first ucast MAC remote result: " + st.getCode());
-        return st;
-    }
-
-    /**
      * Deletes all remote unicast MAC entries for the specified logical switch.
      * The method returns a NotFound status when there is no logical switch,
      * there is no unicast MAC table, or there are no entries to delete.
@@ -2265,7 +2228,7 @@ public class ConfigurationService extends ConfigurationServiceBase
      * @param mac The MAC address.
      * @return The operation status code.
      */
-    public Status vtepDelAllUcastMacRemote(String ls, String mac) {
+    public Status vtepDelUcastMacRemote(String ls, String mac) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
@@ -2321,7 +2284,7 @@ public class ConfigurationService extends ConfigurationServiceBase
      * @param macIp The MAC IP address.
      * @return The operation status code.
      */
-    public Status vtepDelAllUcastMacRemote(String ls, String mac, String macIp) {
+    public Status vtepDelUcastMacRemote(String ls, String mac, String macIp) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
@@ -2441,42 +2404,6 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Deletes the first multicast MAC entry for the specified logical switch.
-     * The method returns a NotFound error code if either the logical switch or
-     * the MAC address are not found.
-     *
-     * @param ls The logical switch name.
-     * @param mac The MAC address.
-     * @return The operation status code.
-     */
-    public Status vtepDelFirstMcastMacRemote(String ls, String mac) {
-        this.dbName = "hardware_vtep";
-        Node node = Node.fromString("OVS|vtep");
-        if (node == null && defaultNode == null) {
-            logger.debug("Invalid node: OVS|vtep");
-            return new StatusWithUuid(StatusCode.NOTFOUND);
-        } else if (node == null) {
-            node = defaultNode;
-        }
-        UUID lsUuid = findLogicalSwitch(node, ls);
-        if (lsUuid == null) {
-            logger.debug("No logical switch named " + ls);
-            return new StatusWithUuid(StatusCode.NOTFOUND);
-        }
-        UUID entryUUID = findFirstMcastMacRemote(node, mac, lsUuid);
-        if (entryUUID == null) {
-            logger.debug("Trying to delete non-existing mcast MAC entry for " +
-                         "{} on logical switch {}", mac, ls);
-            return new Status(StatusCode.NOTFOUND);
-        }
-
-        Status st = _deleteRootTableRow(node, entryUUID.toString(),
-                                        Mcast_Macs_Remote.NAME.getName());
-        logger.debug("Delete first mcast MAC remote result: " + st.getCode());
-        return st;
-    }
-
-    /**
      * Deletes all remote multicast MAC entries for the specified logical switch.
      * The method returns a NotFound status when there is no logical switch,
      * there is no unicast MAC table, or there are no entries to delete.
@@ -2485,7 +2412,7 @@ public class ConfigurationService extends ConfigurationServiceBase
      * @param mac The MAC address.
      * @return The operation status code.
      */
-    public Status vtepDelAllMcastMacRemote(String ls, String mac) {
+    public Status vtepDelMcastMacRemote(String ls, String mac) {
         this.dbName = "hardware_vtep";
         Node node = Node.fromString("OVS|vtep");
         if (node == null && defaultNode == null) {
