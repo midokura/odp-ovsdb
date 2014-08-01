@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -2208,6 +2209,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         row.setLocator(set(plUuid));
         row.setIpaddr(macIp);
         row.setLogical_switch(set(lsUuid));
+        logger.debug("Add ucast mac remote row: {}", row);
         Operation op = new InsertOperation(Ucast_Macs_Remote.NAME.getName(),
                                            "new_ucast_mac", row);
         int insertIdx = transaction.getRequests().indexOf(op);
@@ -2520,56 +2522,6 @@ public class ConfigurationService extends ConfigurationServiceBase
     }
 
     /**
-     * Finds the first unicast remote MAC entry. The method returns null if
-     * there is no entry that matches the MAC and the logical switch entry.
-     *
-     * @param n The DB node.
-     * @param mac The MAC address.
-     * @param lsId The logical switch DB entry identifier.
-     * @return The MAC DB entry identifier.
-     */
-    private UUID findFirstUcastMacRemote(Node n, String mac, UUID lsId) {
-        Map<String, Table<?>> tableCache =
-            inventoryServiceInternal.getCache(n).get(
-                Ucast_Macs_Remote.NAME.getName());
-        if (tableCache == null) {
-            return null;
-        }
-        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
-            Ucast_Macs_Remote umr = (Ucast_Macs_Remote) e.getValue();
-            if (umr.getMac().equalsIgnoreCase(mac) &&
-                umr.getLogical_switch().contains(lsId)) {
-                return new UUID(e.getKey());
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Finds the first multicast remote MAC entry.
-     * @param n The DB node.
-     * @param mac The MAC address.
-     * @param lsId The logical switch DB entry identifier.
-     * @return The MAC DB entry idenfier.
-     */
-    private UUID findFirstMcastMacRemote(Node n, String mac, UUID lsId) {
-        Map<String, Table<?>> tableCache =
-            inventoryServiceInternal.getCache(n).get(
-                Mcast_Macs_Remote.NAME.getName());
-        if (tableCache == null) {
-            return null;
-        }
-        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
-            Mcast_Macs_Remote mmr = (Mcast_Macs_Remote)e.getValue();
-            if (mmr.getMac().equalsIgnoreCase(mac) &&
-                mmr.getLogical_switch().contains(lsId)) {
-                return new UUID(e.getKey());
-            }
-        }
-        return null;
-    }
-
-    /**
      * Finds all unicast remote MAC addresses for the specified logical switch,
      * that have the given MAC address.
      *
@@ -2619,7 +2571,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
             Ucast_Macs_Remote umr = (Ucast_Macs_Remote)e.getValue();
             if (umr.getMac().equalsIgnoreCase(mac) &&
-                ((macIp == null && umr.getIpaddr() == null) ||
+                ((macIp == null && Strings.isNullOrEmpty(umr.getIpaddr())) ||
                  (macIp != null && macIp.equals(umr.getIpaddr()))) &&
                 umr.getLogical_switch().contains(lsId)) {
                 idList.add(new UUID(e.getKey()));
@@ -2652,7 +2604,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
             Ucast_Macs_Remote umr = (Ucast_Macs_Remote) e.getValue();
             if (umr.getMac().equalsIgnoreCase(mac) &&
-                ((macIp == null && umr.getIpaddr() == null) ||
+                ((macIp == null && Strings.isNullOrEmpty(umr.getIpaddr())) ||
                  (macIp != null && macIp.equals(umr.getIpaddr()))) &&
                 umr.getLocator().contains(physLoc) &&
                 umr.getLogical_switch().contains(lsId)) {
