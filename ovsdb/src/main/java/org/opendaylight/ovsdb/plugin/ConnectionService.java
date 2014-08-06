@@ -101,7 +101,11 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     private InventoryServiceInternal inventoryServiceInternal;
     private Channel serverListenChannel = null;
 
-    private Subject<TableUpdates, TableUpdates> updateSubject =
+    private final Subject<Connection, Connection> connectSubject =
+        PublishSubject.create();
+    private final Subject<Connection, Connection> disconnectSubject =
+        PublishSubject.create();
+    private final Subject<TableUpdates, TableUpdates> updateSubject =
         PublishSubject.create();
 
     public InventoryServiceInternal getInventoryServiceInternal() {
@@ -133,8 +137,27 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
 
     }
 
-    public Observable<TableUpdates> observableUpdates() {
-        return this.updateSubject;
+    /**
+     * Returns an observable with notifications when new connections for a node
+     * have been established by the connection service.
+     */
+    public Observable<Connection> connectedObservable() {
+        return connectSubject.asObservable();
+    }
+
+    /**
+     * Returns an observable with notifications when existing connections
+     * have been disconnected.
+     */
+    public Observable<Connection> disconnectedObservable() {
+        return disconnectSubject.asObservable();
+    }
+
+    /**
+     * Returns an observable with notifications for table updates.
+     */
+    public Observable<TableUpdates> updatesObservable() {
+        return updateSubject.asObservable();
     }
 
     /**
@@ -171,6 +194,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         Connection connection = ovsdbConnections.get(identifier);
         if (connection != null) {
             ovsdbConnections.remove(identifier);
+            disconnectSubject.onNext(connection);
             return connection.disconnect();
         } else {
             return new Status(StatusCode.NOTFOUND);
@@ -278,6 +302,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         connection.setRpc(ovsdb);
         ovsdb.registerCallback(instance);
         ovsdbConnections.put(identifier, connection);
+        connectSubject.onNext(connection);
 
         ChannelConnectionHandler handler = new ChannelConnectionHandler();
         handler.setNode(node);
@@ -296,6 +321,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
                 } catch (InterruptedException | ExecutionException e) {
                     logger.error("Failed to initialize inventory for node with identifier " + identifier, e);
                     ovsdbConnections.remove(identifier);
+                    disconnectSubject.onNext(connection);
                 }
             }
             public Thread initializeConnectionParams(String identifier, Connection connection) {
