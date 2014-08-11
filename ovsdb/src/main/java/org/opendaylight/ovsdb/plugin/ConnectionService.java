@@ -302,7 +302,6 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         connection.setRpc(ovsdb);
         ovsdb.registerCallback(instance);
         ovsdbConnections.put(identifier, connection);
-        connectSubject.onNext(connection);
 
         ChannelConnectionHandler handler = new ChannelConnectionHandler();
         handler.setNode(node);
@@ -318,6 +317,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
             public void run() {
                 try {
                     initializeInventoryForNewNode(connection);
+                    connectSubject.onNext(connection);
                 } catch (InterruptedException | ExecutionException e) {
                     logger.error("Failed to initialize inventory for node with identifier " + identifier, e);
                     ovsdbConnections.remove(identifier);
