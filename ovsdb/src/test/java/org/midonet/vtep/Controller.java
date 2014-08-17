@@ -118,7 +118,7 @@ class Controller {
         }
 
         //c.cfgSrv.vtepAddLogicalSwitch("testLs", 2323);
-        c.cfgSrv.vtepBindVlan("testLs1", "in1", 2323, 3222, null);
+        c.cfgSrv.vtepBindVlan(c.node, "testLs1", "in1", (short)2323, 3222, null);
 
         // INVOKE
         // c.cfgSrv.vtepDelLogicalSwitch("midonet-1d22f1be-93ba-42ae-8b3c-ed8b604cc643");
