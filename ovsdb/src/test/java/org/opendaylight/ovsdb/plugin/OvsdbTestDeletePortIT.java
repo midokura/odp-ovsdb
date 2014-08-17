@@ -29,7 +29,6 @@ public class OvsdbTestDeletePortIT {
         NodeConnector.NodeConnectorIDType.registerIDType("OVS", String.class, "OVS");
 
         ConnectionService connectionService = new ConnectionService();
-        connectionService.init();
         String identifier = "TEST";
         Map<ConnectionConstants, String> params = new HashMap<ConnectionConstants, String>();
         params.put(ConnectionConstants.ADDRESS, "10.12.0.78");

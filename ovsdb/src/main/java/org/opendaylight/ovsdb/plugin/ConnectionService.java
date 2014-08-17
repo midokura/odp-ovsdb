@@ -96,7 +96,8 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
 
     private static Integer ovsdbListenPort = defaultOvsdbPort;
     private static boolean autoConfigureController = defaultAutoConfigureController;
-    private ConcurrentMap<String, Connection> ovsdbConnections;
+    private final ConcurrentMap<String, Connection> ovsdbConnections;
+    private final NioEventLoopGroup eventLoopGroup;
     private List<ChannelHandler> handlers = null;
     private InventoryServiceInternal inventoryServiceInternal;
     private Channel serverListenChannel = null;
@@ -107,6 +108,23 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         PublishSubject.create();
     private final Subject<TableUpdates, TableUpdates> updateSubject =
         PublishSubject.create();
+
+    public ConnectionService() {
+        ovsdbConnections = new ConcurrentHashMap<>();
+        int listenPort = defaultOvsdbPort;
+        String portString = System.getProperty(OVSDB_LISTENPORT);
+        if (portString != null) {
+            listenPort = Integer.decode(portString).intValue();
+        }
+        ovsdbListenPort = listenPort;
+
+        eventLoopGroup = new NioEventLoopGroup();
+
+        // Keep the default value if the property is not set
+        if (System.getProperty(OVSDB_AUTOCONFIGURECONTROLLER) != null)
+            autoConfigureController = Boolean.getBoolean(OVSDB_AUTOCONFIGURECONTROLLER);
+    }
+
 
     public InventoryServiceInternal getInventoryServiceInternal() {
         return inventoryServiceInternal;
@@ -120,21 +138,6 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         if (this.inventoryServiceInternal == inventoryServiceInternal) {
             this.inventoryServiceInternal = null;
         }
-    }
-
-    public void init() {
-        ovsdbConnections = new ConcurrentHashMap<>();
-        int listenPort = defaultOvsdbPort;
-        String portString = System.getProperty(OVSDB_LISTENPORT);
-        if (portString != null) {
-            listenPort = Integer.decode(portString).intValue();
-        }
-        ovsdbListenPort = listenPort;
-
-        // Keep the default value if the property is not set
-        if (System.getProperty(OVSDB_AUTOCONFIGURECONTROLLER) != null)
-            autoConfigureController = Boolean.getBoolean(OVSDB_AUTOCONFIGURECONTROLLER);
-
     }
 
     /**
@@ -165,7 +168,8 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
      * become unsatisfied or when the component is shutting down because for
      * example bundle is being stopped.
      */
-    void destroy() {
+    public void destroy() {
+        eventLoopGroup.shutdownGracefully().syncUninterruptibly();
     }
 
     /**
@@ -222,7 +226,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
 
         try {
             Bootstrap bootstrap = new Bootstrap();
-            bootstrap.group(new NioEventLoopGroup());
+            bootstrap.group(eventLoopGroup);
             bootstrap.channel(NioSocketChannel.class);
             bootstrap.option(ChannelOption.TCP_NODELAY, true);
             bootstrap.option(ChannelOption.RCVBUF_ALLOCATOR, new AdaptiveRecvByteBufAllocator(65535, 65535, 65535));

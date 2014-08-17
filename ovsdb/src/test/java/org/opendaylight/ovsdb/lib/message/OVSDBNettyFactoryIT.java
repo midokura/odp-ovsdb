@@ -69,9 +69,7 @@ public class OVSDBNettyFactoryIT {
     public void testSome() throws InterruptedException, ExecutionException,
             IOException {
         ConnectionService connectionService = new ConnectionService();
-        connectionService.init();
         inventoryService = new InventoryService();
-        inventoryService.init();
         connectionService.setInventoryServiceInternal(inventoryService);
         Node.NodeIDType.registerIDType("OVS", String.class);
         Map<ConnectionConstants, String> params = new HashMap<ConnectionConstants, String>();

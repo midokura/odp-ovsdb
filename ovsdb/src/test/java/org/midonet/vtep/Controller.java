@@ -3,7 +3,6 @@
  */
 package org.midonet.vtep;
 
-import java.util.ArrayList;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Map;
@@ -71,7 +70,7 @@ class Controller {
     };
 
     private ConnectionService conSrv = null;
-    private Node node = null;
+    public Node node = null;
     private ConfigurationService cfgSrv = null;
 
     private String ip;
@@ -84,7 +83,6 @@ class Controller {
 
     private void init() {
         conSrv = new ConnectionService();
-        conSrv.init();
         Map<ConnectionConstants, String> params = new HashMap<>();
 
         log.info("Connecting to {}:{}", ip, port);
@@ -95,7 +93,6 @@ class Controller {
                    props.getProperty("ovsdbserver.port", port));
 
         InventoryService is= new InventoryService();
-        is.init();
 
         conSrv.setInventoryServiceInternal(is);
         node = conSrv.connect(nodeName, params);
@@ -103,7 +100,6 @@ class Controller {
         cfgSrv = new ConfigurationService();
         cfgSrv.setInventoryServiceInternal(is);
         cfgSrv.setConnectionServiceInternal(conSrv);
-        cfgSrv.setDefaultNode(node);
     }
 
     public static void main(String[] args) {
@@ -122,7 +118,7 @@ class Controller {
         }
 
         //c.cfgSrv.vtepAddLogicalSwitch("testLs", 2323);
-        c.cfgSrv.vtepBindVlan("testLs1", "in1", 2323, 3222, new ArrayList<String>());
+        c.cfgSrv.vtepBindVlan("testLs1", "in1", 2323, 3222, null);
 
         // INVOKE
         // c.cfgSrv.vtepDelLogicalSwitch("midonet-1d22f1be-93ba-42ae-8b3c-ed8b604cc643");

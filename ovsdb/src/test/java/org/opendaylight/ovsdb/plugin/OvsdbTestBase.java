@@ -53,7 +53,6 @@ public abstract class OvsdbTestBase {
                 "OVS");
 
         ConnectionService connectionService = new ConnectionService();
-        connectionService.init();
         Map<ConnectionConstants, String> params = new HashMap<ConnectionConstants, String>();
         Properties props = loadProperties();
         params.put(ConnectionConstants.ADDRESS,

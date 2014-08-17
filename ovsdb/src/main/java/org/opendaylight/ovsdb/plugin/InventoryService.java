@@ -54,22 +54,22 @@ public class InventoryService implements IPluginInInventoryService, InventorySer
             .getLogger(InventoryService.class);
     private final Set<IPluginOutInventoryService> pluginOutInventoryServices =
             new CopyOnWriteArraySet<IPluginOutInventoryService>();
-    private ConcurrentMap<Node, Map<String, Property>> nodeProps;
-    private ConcurrentMap<NodeConnector, Map<String, Property>> nodeConnectorProps;
-    private ConcurrentMap<Node, NodeDB> dbCache = Maps.newConcurrentMap();
-    private ScheduledExecutorService executor;
+    private final ConcurrentMap<Node, Map<String, Property>> nodeProps;
+    private final ConcurrentMap<NodeConnector, Map<String, Property>> nodeConnectorProps;
+    private final ConcurrentMap<Node, NodeDB> dbCache = Maps.newConcurrentMap();
+    private final ScheduledExecutorService executor;
 
     /**
      * Function called by the dependency manager when all the required
      * dependencies are satisfied
      *
      */
-    public void init() {
+    public InventoryService() {
         nodeProps = new ConcurrentHashMap<Node, Map<String, Property>>();
         nodeConnectorProps = new ConcurrentHashMap<NodeConnector, Map<String, Property>>();
         Node.NodeIDType.registerIDType("OVS", String.class);
         NodeConnector.NodeConnectorIDType.registerIDType("OVS", String.class, "OVS");
-        this.executor = Executors.newSingleThreadScheduledExecutor();
+        executor = Executors.newSingleThreadScheduledExecutor();
     }
 
     /**
