@@ -1746,25 +1746,32 @@ public class ConfigurationService extends ConfigurationServiceBase
 
         boolean creatingLs = false;
         UUID lsUuid = findLogicalSwitch(node, lsName);
-        List<Operation> ops = new ArrayList<>();
         if (lsUuid == null) {
             if (vni == null) {
-                logger.error("Logical switch " + lsName +
-                                 " not found, no vni provided");
+                logger.error("Logical switch {} not found, no VNI provided",
+                             lsName);
                 return new Status(StatusCode.NOTFOUND,
-                                  "Logical Switch " + lsName + " not found");
+                                  "Logical switch " + lsName + " not found");
             }
-            logger.info("Logical switch will be added, vni {}", vni);
-            Logical_Switch row = new Logical_Switch();
-            row.setName(lsName);
-            row.setTunnel_key(set(BigInteger.valueOf(vni)));
-            lsUuid = new UUID(lsName);
-            ops.add(new InsertOperation(Logical_Switch.NAME.getName(),
-                                        lsName, row));
-            creatingLs = true;
+            logger.info("Adding logical switch {} with VNI {}", lsName, vni);
+
+            StatusWithUuid status = vtepAddLogicalSwitch(node, lsName, vni);
+
+            if (status.isSuccess()) {
+                logger.debug("Added logical switch {} with key {}", lsName,
+                             status.getUuid());
+                lsUuid = status.getUuid();
+            } else {
+                logger.error("Adding logical switch {} failed with status {} "
+                             + ": {}", lsName, status.getCode(),
+                             status.getDescription());
+                return new Status(StatusCode.NOTFOUND,
+                                  "Logical switch " + lsName + " not found");
+            }
         } else {
             logger.info("Logical switch exists, {}", lsUuid);
         }
+        List<Operation> ops = new ArrayList<>();
 
         ops.addAll(makeBindingOperations(node, lsUuid, Arrays.asList(Pair.of(portName, vlan))));
 
