@@ -42,6 +42,7 @@ import org.opendaylight.ovsdb.lib.jsonrpc.JsonRpcDecoder;
 import org.opendaylight.ovsdb.lib.jsonrpc.JsonRpcEndpoint;
 import org.opendaylight.ovsdb.lib.jsonrpc.JsonRpcServiceBinderHandler;
 import org.opendaylight.ovsdb.lib.message.MonitorRequestBuilder;
+import org.opendaylight.ovsdb.lib.message.NodeUpdateNotification;
 import org.opendaylight.ovsdb.lib.message.OvsdbRPC;
 import org.opendaylight.ovsdb.lib.message.TableUpdates;
 import org.opendaylight.ovsdb.lib.message.UpdateNotification;
@@ -106,8 +107,8 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         PublishSubject.create();
     private final Subject<Connection, Connection> disconnectSubject =
         PublishSubject.create();
-    private final Subject<TableUpdates, TableUpdates> updateSubject =
-        PublishSubject.create();
+    private final Subject<NodeUpdateNotification, NodeUpdateNotification>
+        updateSubject = PublishSubject.create();
 
     public ConnectionService() {
         ovsdbConnections = new ConcurrentHashMap<>();
@@ -159,7 +160,7 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
     /**
      * Returns an observable with notifications for table updates.
      */
-    public Observable<TableUpdates> updatesObservable() {
+    public Observable<NodeUpdateNotification> updatesObservable() {
         return updateSubject.asObservable();
     }
 
@@ -603,7 +604,8 @@ public class ConnectionService implements IPluginInConnectionService, IConnectio
         // This is a sync call
         inventoryServiceInternal.processTableUpdates(node, updateNotification.getUpdate());
         // Only when changes are safe in the local cache, proceed to publish
-        this.updateSubject.onNext(updateNotification.getUpdate());
+        this.updateSubject.onNext(
+            new NodeUpdateNotification(node, updateNotification.getUpdate()));
     }
 
     @Override
