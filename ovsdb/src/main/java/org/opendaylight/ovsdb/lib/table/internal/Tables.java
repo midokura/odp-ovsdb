@@ -35,6 +35,7 @@ import org.opendaylight.ovsdb.lib.table.vtep.Logical_Switch;
 import org.opendaylight.ovsdb.lib.table.vtep.Mcast_Macs_Local;
 import org.opendaylight.ovsdb.lib.table.vtep.Mcast_Macs_Remote;
 import org.opendaylight.ovsdb.lib.table.vtep.Physical_Locator;
+import org.opendaylight.ovsdb.lib.table.vtep.Physical_Locator_Set;
 import org.opendaylight.ovsdb.lib.table.vtep.Physical_Port;
 import org.opendaylight.ovsdb.lib.table.vtep.Physical_Switch;
 import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Local;
@@ -67,6 +68,7 @@ public class Tables {
         vtepTables.add(new Manager());
         vtepTables.add(new Physical_Switch());
         vtepTables.add(new Physical_Locator());
+        vtepTables.add(new Physical_Locator_Set());
         vtepTables.add(new Physical_Port());
         vtepTables.add(new Logical_Switch());
         vtepTables.add(new Mcast_Macs_Local());

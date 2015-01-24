@@ -21,8 +21,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import org.apache.commons.lang.StringUtils;
@@ -74,6 +76,8 @@ import org.opendaylight.ovsdb.lib.table.vtep.Physical_Port;
 import org.opendaylight.ovsdb.lib.table.vtep.Physical_Switch;
 import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Local;
 import org.opendaylight.ovsdb.lib.table.vtep.Ucast_Macs_Remote;
+
+import static java.util.Arrays.*;
 
 /**
  * Offers OVS configuration operations.
@@ -161,7 +165,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             Condition where = new Condition("_uuid", Function.EQUALS, uuid);
             MutateOperation updateCfgVerRequest = new MutateOperation(dbName, where, mutation);
 
-            TransactBuilder transaction = makeTransaction(Arrays.asList(
+            TransactBuilder transaction = makeTransaction(asList(
                 addSwitchRequest, addIntfRequest, addPortRequest,
                 addBridgeRequest, updateCfgVerRequest));
 
@@ -279,7 +283,7 @@ public class ConfigurationService extends ConfigurationServiceBase
                 portRow.setInterfaces(interfaces);
                 InsertOperation addPortRequest = new InsertOperation(Port.NAME.getName(), newPort, portRow);
 
-                TransactBuilder transaction = makeTransaction(Arrays.asList(
+                TransactBuilder transaction = makeTransaction(asList(
                     addBrMutRequest, addPortRequest, addIntfRequest));
 
                 ListenableFuture<List<OperationResult>> transResponse = connection.getRpc().transact(transaction);
@@ -703,7 +707,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             InsertOperation addBridgeRequest = new InsertOperation(Bridge.NAME.getName(), newBridge, bridgeRow);
 
-            TransactBuilder transaction = makeTransaction(Arrays.asList(
+            TransactBuilder transaction = makeTransaction(asList(
                 addSwitchRequest, addBridgeRequest));
 
             int bridgeInsertIndex = transaction.getRequests().indexOf(addBridgeRequest);
@@ -761,7 +765,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             InsertOperation addPortRequest = new InsertOperation(Port.NAME.getName(), newPort, portRow);
 
-            TransactBuilder transaction = makeTransaction(Arrays.asList(
+            TransactBuilder transaction = makeTransaction(asList(
                 addBrMutRequest, addPortRequest, addIntfRequest));
             int portInsertIndex = transaction.getRequests().indexOf(addPortRequest);
 
@@ -798,8 +802,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             InsertOperation addIntfRequest = new InsertOperation(Interface.NAME.getName(),newInterface, interfaceRow);
 
             // Transaction to insert/modify tables - validate using "sudo ovsdb-client dump" on host running OVSDB process
-            TransactBuilder transaction = makeTransaction(Arrays.asList(
-                addIntfRequest,addPortMutationRequest));
+            TransactBuilder transaction = makeTransaction(asList(
+                addIntfRequest, addPortMutationRequest));
 
             // Check the results. Iterates over the results of the Array of transaction Operations, and reports STATUS
             int interfaceInsertIndex = transaction.getRequests().indexOf(addIntfRequest);
@@ -896,8 +900,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             InsertOperation addSSLRequest = new InsertOperation(SSL.NAME.getName(), newSSL, row);
 
             TransactBuilder transaction = new TransactBuilder(dbName);
-            transaction.addOperations(Arrays.asList(addSSLRequest,
-                                                    addOpen_vSwitchRequest));
+            transaction.addOperations(asList(addSSLRequest,
+                                             addOpen_vSwitchRequest));
 
             int sslInsertIndex = transaction.getRequests().indexOf(addSSLRequest);
 
@@ -936,8 +940,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             InsertOperation addSflowRequest = new InsertOperation(SFlow.NAME.getName(), newSflow, row);
 
             TransactBuilder transaction = new TransactBuilder(dbName);
-            transaction.addOperations(Arrays.asList(addSflowRequest,
-                                                    addBridgeRequest));
+            transaction.addOperations(asList(addSflowRequest,
+                                             addBridgeRequest));
 
             int sflowInsertIndex = transaction.getRequests().indexOf(addSflowRequest);
 
@@ -971,7 +975,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             InsertOperation addQueueRequest = new InsertOperation(Queue.NAME.getName(), newQueue, row);
 
             TransactBuilder transaction = new TransactBuilder(dbName);
-            transaction.addOperations(new ArrayList<Operation>(Arrays.asList(addQueueRequest)));
+            transaction.addOperations(new ArrayList<Operation>(
+                asList(addQueueRequest)));
 
             int queueInsertIndex = transaction.getRequests().indexOf(addQueueRequest);
 
@@ -1007,7 +1012,8 @@ public class ConfigurationService extends ConfigurationServiceBase
 
                 InsertOperation addQosRequest = new InsertOperation(Qos.NAME.getName(), newQos, row);
 
-                TransactBuilder transaction = makeTransaction(Arrays.asList(addQosRequest,addPortRequest));
+                TransactBuilder transaction = makeTransaction(
+                    asList(addQosRequest, addPortRequest));
 
                 int qosInsertIndex = transaction.getRequests().indexOf(addQosRequest);
 
@@ -1054,7 +1060,8 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             Operation addNetflowRequest = new InsertOperation(NetFlow.NAME.getName(), newNetflow, row);
 
-            TransactBuilder transaction = makeTransaction(Arrays.asList(addNetflowRequest, addBridgeRequest));
+            TransactBuilder transaction = makeTransaction(
+                asList(addNetflowRequest, addBridgeRequest));
 
             int netflowInsertIndex = transaction.getRequests().indexOf(addNetflowRequest);
 
@@ -1093,7 +1100,8 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             InsertOperation addMirrorRequest = new InsertOperation(Mirror.NAME.getName(), newMirror, row);
 
-            TransactBuilder transaction = makeTransaction(Arrays.asList(addBridgeRequest, addMirrorRequest));
+            TransactBuilder transaction = makeTransaction(
+                asList(addBridgeRequest, addMirrorRequest));
 
             int mirrorInsertIndex = transaction.getRequests().indexOf(addMirrorRequest);
 
@@ -1129,7 +1137,7 @@ public class ConfigurationService extends ConfigurationServiceBase
 
             InsertOperation addManagerRequest = new InsertOperation(Manager.NAME.getName(), newManager, row);
 
-            TransactBuilder transaction = makeTransaction(Arrays.asList(
+            TransactBuilder transaction = makeTransaction(asList(
                 addSwitchRequest, addManagerRequest));
 
             int managerInsertIndex = transaction.getRequests().indexOf(addManagerRequest);
@@ -1570,7 +1578,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         InsertOperation ins = new InsertOperation(Physical_Port.NAME.getName(),
                                                   "new_ps_port", row);
 
-        TransactBuilder tr = makeTransaction(Arrays.asList(mr, ins));
+        TransactBuilder tr = makeTransaction(asList(mr, ins));
         try {
             List<OperationResult> opsRes = getConnection(node)
                 .getRpc().transact(tr).get();
@@ -1773,7 +1781,8 @@ public class ConfigurationService extends ConfigurationServiceBase
         }
         List<Operation> ops = new ArrayList<>();
 
-        ops.addAll(makeBindingOperations(node, lsUuid, Arrays.asList(Pair.of(portName, vlan))));
+        ops.addAll(makeBindingOperations(node, lsUuid, asList(
+            Pair.of(portName, vlan))));
 
         ops.addAll(makeFloodIpOperations(node, lsUuid, floodIps));
 
@@ -1855,7 +1864,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             UUID port = new UUID(e.getKey());
             ops.add(new MutateOperation(
                 Physical_Port.NAME.getName(),
-                Arrays.asList(new Condition("_uuid", Function.EQUALS, port)),
+                asList(new Condition("_uuid", Function.EQUALS, port)),
                 mutations)
             );
         }
@@ -1969,7 +1978,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         List<Operation> ops = new ArrayList<>();
 
         // We need to clear all the mac tables, both local and remote mac tables
-        List<String> macTables = Arrays.asList(
+        List<String> macTables = asList(
             Ucast_Macs_Local.NAME.getName(), Mcast_Macs_Local.NAME.getName(),
             Ucast_Macs_Remote.NAME.getName(), Mcast_Macs_Remote.NAME.getName()
         );
@@ -2263,10 +2272,16 @@ public class ConfigurationService extends ConfigurationServiceBase
      * @param ip The IP address.
      * @return The operation status.
      */
-    public StatusWithUuid vtepAddMcastMacRemote(
+    public Status vtepAddMcastMacRemote(
         Node node, String ls, String mac, String ip) {
 
-        //this.dbName = "hardware_vtep";
+        // TODO: apologies for this method. It'd be nice to split it in smaller
+        // pieces, but the API is cumbersome, if you want to issue a transaction
+        // you need to accumulate mutations and carry over the wildcard UUIDs,
+        // so it's a mess passing the same params all around.
+        //
+        // Hopefully we will migrate soon to the new plugin to make this
+        // simpler.
 
         UUID lsUuid = findLogicalSwitch(node, ls);
         if (lsUuid == null) {
@@ -2274,6 +2289,7 @@ public class ConfigurationService extends ConfigurationServiceBase
             return new StatusWithUuid(StatusCode.NOTFOUND);
         }
 
+        // Ensure we have the physical locator
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
         UUID plUuid= findPhysLocator(node, ip);
         if (plUuid == null) {
@@ -2287,26 +2303,77 @@ public class ConfigurationService extends ConfigurationServiceBase
                 Physical_Locator.NAME.getName(), newPlName, pl));
         }
 
+        // We need a single MCast_Mac_Row with the unknown-dst per logical
+        // switch. This Mcast row will be 1:1 with a Physical_Locator_Set row
+        // with all the endpoint ips in a single set.
+        Mcast_Macs_Remote mcastRow = findUnknownMacMcastRemote(node, lsUuid);
+        OvsDBSet<UUID> locators = set(plUuid);
+        if (mcastRow != null) {
+            // We delete it, because it's impossible to mutate an existing
+            // pair of mcast_mac_remote and physical_locator_set rows :/
+            transaction.addOperation(new DeleteOperation(
+                Mcast_Macs_Remote.NAME.getName(),
+                asList(
+                    new Condition("MAC", Function.EQUALS, "unknown-dst"),
+                    new Condition("logical_switch", Function.EQUALS, lsUuid)
+                )
+            ));
+
+            // Also delete the physical locator set, if exists
+            OvsDBSet<UUID> plsSet = mcastRow.getLocator_set();
+            UUID oldPlsUuid = (plsSet == null) ? null : plsSet.iterator().next();
+            if (oldPlsUuid != null) {
+                ConcurrentMap<String, ConcurrentMap<String, Table<?>>>
+                    tableCache = inventoryServiceInternal.getCache(node);
+                if (tableCache == null) {
+                    logger.warn("No table cache found!!");
+                    return new Status(StatusCode.NOTFOUND);
+                }
+                Map<String, Table<?>> plsCache =
+                    tableCache.get(Physical_Locator_Set.NAME.getName());
+                if (plsCache == null) {
+                    logger.warn("No cache found for Physical_Locator_Set! Is " +
+                                "VTEP schema available?");
+                    return new Status(StatusCode.NOTFOUND);
+                }
+                oldPlsUuid = plsSet.iterator().next();
+                Physical_Locator_Set oldPls =
+                    (Physical_Locator_Set) plsCache.get(oldPlsUuid.toString());
+                // keep the old locators
+                locators.addAll(oldPls.getLocators());
+                transaction.addOperation(
+                    new DeleteOperation(Physical_Locator_Set.NAME.getName(),
+                                        new Condition("_uuid", Function.EQUALS,
+                                                      oldPlsUuid)
+                    ));
+            }
+        }
+
+        logger.info("New unknown-dst mcast entry for switch {}", ls);
+
+        // Make a new physical locator
         String newPlsName = "new_pls_name";
         UUID plsUuid = new UUID(newPlsName);
         Physical_Locator_Set pls = new Physical_Locator_Set();
-        pls.setLocators(set(plUuid));
+        pls.setLocators(locators); // add the old locators + the new one
+
         transaction.addOperation(new InsertOperation(
             Physical_Locator_Set.NAME.getName(), newPlsName, pls));
 
-        Mcast_Macs_Remote rowMcast = new Mcast_Macs_Remote();
-        rowMcast.setMac(mac);
-        rowMcast.setLocator_set(set(plsUuid));
-        rowMcast.setLogical_switch(set(lsUuid));
-        Operation opMcast = new InsertOperation(Mcast_Macs_Remote.NAME.getName(),
-                                                "new_mcast_mac", rowMcast);
+        // Make a new Mcast_Mac_Remote entry
+        mcastRow = new Mcast_Macs_Remote();
+        mcastRow.setMac(mac);
+        mcastRow.setLocator_set(set(plsUuid));
+        mcastRow.setLogical_switch(set(lsUuid));
+        transaction.addOperation(new InsertOperation(
+            Mcast_Macs_Remote.NAME.getName(), "new_mcast_mac", mcastRow));
 
-        transaction.addOperation(opMcast);
-
-        int insertIdx = transaction.getRequests().indexOf(opMcast);
+        // Insert both
+        int insertIdx = transaction.getRequests().size() - 1;
         StatusWithUuid st = _insertTableRow(node, transaction, insertIdx,
                                             Mcast_Macs_Remote.NAME.getName(),
                                             "new_mcast_mac");
+
         logger.debug("Add mcast remote result: " + st.getCode());
         return st;
     }
@@ -2542,6 +2609,27 @@ public class ConfigurationService extends ConfigurationServiceBase
         return idList;
     }
 
+    /**
+     * We allow one per logical switch, and the locator set contains all the
+     * locators.
+     */
+    private Mcast_Macs_Remote findUnknownMacMcastRemote(Node n, UUID lsId) {
+        Map<String, Table<?>> tableCache =
+            inventoryServiceInternal.getCache(n).get(
+                Mcast_Macs_Remote.NAME.getName());
+        if (tableCache == null) {
+            return null;
+        }
+        for (Map.Entry<String, Table<?>> e : tableCache.entrySet()) {
+            Mcast_Macs_Remote mmr = (Mcast_Macs_Remote)e.getValue();
+            if (mmr.getMac().equalsIgnoreCase("unknown-dst") &&
+                mmr.getLogical_switch().contains(lsId)) {
+                return mmr;
+            }
+        }
+        return null;
+    }
+
     private UUID findPhysLocator(Node n, String ip) {
 
         Map<String, Table<?>> plCache = inventoryServiceInternal.getCache(n)
@@ -2722,8 +2810,8 @@ public class ConfigurationService extends ConfigurationServiceBase
             InsertOperation(tableName, newManager, row);
 
         TransactBuilder transaction = new TransactBuilder(getDatabaseName());
-        transaction.addOperations(Arrays.asList(opMutateGlobal,
-                                                opInsertManager));
+        transaction.addOperations(asList(opMutateGlobal,
+                                         opInsertManager));
 
         int insertIndex = transaction.getRequests().indexOf(opMutateGlobal);
         return _insertTableRow(node, transaction, insertIndex,
@@ -2759,7 +2847,7 @@ public class ConfigurationService extends ConfigurationServiceBase
         Operation opInsPort = new InsertOperation(rowName, newPort, row);
 
         try {
-            TransactBuilder transaction = makeTransaction(Arrays.asList(
+            TransactBuilder transaction = makeTransaction(asList(
                 opMutateSwitch, opInsPort));
             int insertIdx = transaction.getRequests().indexOf(opInsPort);
             return _insertTableRow(node, transaction, insertIdx,
