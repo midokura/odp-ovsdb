@@ -9,7 +9,7 @@ import org.opendaylight.ovsdb.lib.table.internal.Table;
  *
  * A summary of the Flow_Sample_Collector_Set fields:
  * bridge           Bridge
- * ipﬁx             ipfix (optional)
+ * ipfix            ipfix (optional)
  * external_ids     map of string-string pairs
  */
 
