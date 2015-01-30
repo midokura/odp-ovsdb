@@ -14,7 +14,7 @@ import org.opendaylight.ovsdb.lib.table.internal.Table;
  * obs_domain_id         integer, in range 0 to 4,294,967,295 (optional)
  * obs_point_id          integer, in range 0 to 4,294,967,295 (optional)
  * cache_active_timeout  integer, in range 0 to 4,200 (optional)
- * cache_max_ﬂows        integer, in range 0 to 4,294,967,295 (optional)
+ * cache_max_flows        integer, in range 0 to 4,294,967,295 (optional)
  */
 
 public class IPFIX extends Table<IPFIX> {
@@ -26,7 +26,7 @@ public class IPFIX extends Table<IPFIX> {
     private Integer obs_domain_id;
     private Integer obs_point_id;
     private OvsDBSet<Integer> cache_active_timeout;
-    private OvsDBSet<Integer> cache_max_ﬂows;
+    private OvsDBSet<Integer> cache_max_flows;
     private OvsDBMap<String, String> external_ids;
 
     public IPFIX() {
@@ -72,12 +72,12 @@ public class IPFIX extends Table<IPFIX> {
         this.cache_active_timeout = cache_active_timeout;
     }
 
-    public OvsDBSet<Integer> getCache_max_ﬂows() {
-        return cache_max_ﬂows;
+    public OvsDBSet<Integer> getCache_max_flows() {
+        return cache_max_flows;
     }
 
-    public void setCache_max_ﬂows(OvsDBSet<Integer> cache_max_ﬂows) {
-        this.cache_max_ﬂows = cache_max_ﬂows;
+    public void setCache_max_flows(OvsDBSet<Integer> cache_max_flows) {
+        this.cache_max_flows = cache_max_flows;
     }
 
     public OvsDBMap<String, String> getExternal_ids() {
@@ -102,7 +102,7 @@ public class IPFIX extends Table<IPFIX> {
                 ", obs_domain_id=" + obs_domain_id +
                 ", obs_point_id=" + obs_point_id +
                 ", cache_active_timeout=" + cache_active_timeout +
-                ", cache_max_ﬂows=" + cache_max_ﬂows +
+                ", cache_max_flows=" + cache_max_flows +
                 ", external_ids=" + external_ids +
                 "]";
     }
