@@ -10,6 +10,7 @@
 package org.opendaylight.ovsdb.lib.notation.json;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.DatabindContext;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.jsontype.TypeIdResolver;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -49,6 +50,11 @@ public  class OVSDBTypesIDResolver implements TypeIdResolver {
                 return TypeFactory.defaultInstance().constructType(UUID.class);
             }
             return null;
+        }
+
+        @Override
+        public JavaType typeFromId(DatabindContext context, String id) {
+            return typeFromId(id);
         }
 
         @Override
